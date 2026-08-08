@@ -26,7 +26,7 @@ type Location struct {
 	Latitude    float64
 	Longitude   float64
 	SpeedKPH    float64
-	Heading     int
+	Heading     float64
 	Status      string
 	MCC         int
 	MNC         int
@@ -48,8 +48,8 @@ func ParseLocation(frame string) (Location, error) {
 	if !isLocationType(fields[2]) {
 		return location, fmt.Errorf("%w: type %q", ErrUnsupportedMessage, fields[2])
 	}
-	if len(fields) < 15 {
-		return location, fmt.Errorf("%w: got %d fields, want at least 15", ErrMalformedFrame, len(fields))
+	if len(fields) < 13 {
+		return location, fmt.Errorf("%w: got %d fields, want at least 13", ErrMalformedFrame, len(fields))
 	}
 	if fields[4] != "A" && fields[4] != "V" {
 		return location, fmt.Errorf("%w: invalid GPS validity %q", ErrMalformedFrame, fields[4])
@@ -59,29 +59,29 @@ func ParseLocation(frame string) (Location, error) {
 	if err != nil {
 		return location, fmt.Errorf("%w: tracker time: %v", ErrMalformedFrame, err)
 	}
-	latitude, err := parseCoordinate(fields[5], fields[6], 2)
+	latitude, err := parseCoordinate(fields[5], fields[6], 90)
 	if err != nil {
 		return location, fmt.Errorf("%w: latitude: %v", ErrMalformedFrame, err)
 	}
-	longitude, err := parseCoordinate(fields[7], fields[8], 3)
+	longitude, err := parseCoordinate(fields[7], fields[8], 180)
 	if err != nil {
 		return location, fmt.Errorf("%w: longitude: %v", ErrMalformedFrame, err)
 	}
-	speedKnots, err := strconv.ParseFloat(fields[9], 64)
+	speedKnots, err := strconv.ParseFloat(strings.TrimSpace(fields[9]), 64)
 	if err != nil || speedKnots < 0 {
 		return location, fmt.Errorf("%w: invalid speed %q", ErrMalformedFrame, fields[9])
 	}
-	heading, err := strconv.Atoi(fields[10])
-	if err != nil || heading < 0 || heading > 359 {
+	heading, err := strconv.ParseFloat(strings.TrimSpace(fields[10]), 64)
+	if err != nil || heading < 0 || heading >= 360 {
 		return location, fmt.Errorf("%w: invalid heading %q", ErrMalformedFrame, fields[10])
 	}
-	mcc, err := strconv.Atoi(fields[13])
-	if err != nil || mcc < 0 {
-		return location, fmt.Errorf("%w: invalid MCC %q", ErrMalformedFrame, fields[13])
+	mcc, err := optionalNetworkCode(fields, 13)
+	if err != nil {
+		return location, fmt.Errorf("%w: invalid MCC: %v", ErrMalformedFrame, err)
 	}
-	mnc, err := strconv.Atoi(fields[14])
-	if err != nil || mnc < 0 {
-		return location, fmt.Errorf("%w: invalid MNC %q", ErrMalformedFrame, fields[14])
+	mnc, err := optionalNetworkCode(fields, 14)
+	if err != nil {
+		return location, fmt.Errorf("%w: invalid MNC: %v", ErrMalformedFrame, err)
 	}
 
 	location = Location{
@@ -115,13 +115,20 @@ func isLocationType(messageType string) bool {
 	return err == nil && messageType != "V4"
 }
 
-func parseCoordinate(value, hemisphere string, degreeDigits int) (float64, error) {
-	if len(value) <= degreeDigits {
-		return 0, fmt.Errorf("value %q is too short", value)
+func parseCoordinate(value, hemisphere string, limit float64) (float64, error) {
+	value = strings.TrimSpace(value)
+	dot := strings.IndexByte(value, '.')
+	if dot < 2 {
+		return 0, fmt.Errorf("value %q has no minute precision", value)
 	}
-	degrees, err := strconv.ParseFloat(value[:degreeDigits], 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid degrees %q", value[:degreeDigits])
+	degreeDigits := dot - 2
+	degrees := 0.0
+	if degreeDigits > 0 {
+		var err error
+		degrees, err = strconv.ParseFloat(value[:degreeDigits], 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid degrees %q", value[:degreeDigits])
+		}
 	}
 	minutes, err := strconv.ParseFloat(value[degreeDigits:], 64)
 	if err != nil || minutes < 0 || minutes >= 60 {
@@ -131,20 +138,20 @@ func parseCoordinate(value, hemisphere string, degreeDigits int) (float64, error
 	coordinate := degrees + minutes/60
 	switch hemisphere {
 	case "N":
-		if degreeDigits != 2 || coordinate > 90 {
+		if limit != 90 || coordinate > limit {
 			return 0, fmt.Errorf("invalid northern coordinate")
 		}
 	case "S":
-		if degreeDigits != 2 || coordinate > 90 {
+		if limit != 90 || coordinate > limit {
 			return 0, fmt.Errorf("invalid southern coordinate")
 		}
 		coordinate = -coordinate
 	case "E":
-		if degreeDigits != 3 || coordinate > 180 {
+		if limit != 180 || coordinate > limit {
 			return 0, fmt.Errorf("invalid eastern coordinate")
 		}
 	case "W":
-		if degreeDigits != 3 || coordinate > 180 {
+		if limit != 180 || coordinate > limit {
 			return 0, fmt.Errorf("invalid western coordinate")
 		}
 		coordinate = -coordinate
@@ -153,4 +160,29 @@ func parseCoordinate(value, hemisphere string, degreeDigits int) (float64, error
 	}
 
 	return math.Round(coordinate*1e6) / 1e6, nil
+}
+
+func optionalNetworkCode(fields []string, index int) (int, error) {
+	if index >= len(fields) || strings.TrimSpace(fields[index]) == "" {
+		return 0, nil
+	}
+	value := strings.TrimSpace(fields[index])
+	base := 10
+	if strings.IndexFunc(value, func(character rune) bool {
+		return (character < '0' || character > '9') &&
+			(character < 'a' || character > 'f') &&
+			(character < 'A' || character > 'F')
+	}) >= 0 {
+		return 0, fmt.Errorf("value %q is not decimal or hexadecimal", value)
+	}
+	if strings.IndexFunc(value, func(character rune) bool {
+		return (character >= 'a' && character <= 'f') || (character >= 'A' && character <= 'F')
+	}) >= 0 {
+		base = 16
+	}
+	parsed, err := strconv.ParseUint(value, base, 32)
+	if err != nil {
+		return 0, fmt.Errorf("value %q: %w", value, err)
+	}
+	return int(parsed), nil
 }

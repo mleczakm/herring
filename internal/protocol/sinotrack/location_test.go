@@ -51,6 +51,54 @@ func TestParseLocationSouthernAndWesternHemispheres(t *testing.T) {
 	}
 }
 
+func TestParseLocationWithTraccarFixtures(t *testing.T) {
+	// Source: traccar/traccar H02ProtocolDecoderTest.java at commit
+	// 17e7a330e8a07896f000898b37dc770f2df3c142 (Apache-2.0).
+	tests := []struct {
+		name      string
+		frame     string
+		latitude  float64
+		longitude float64
+	}{
+		{
+			"V8 with longitude containing minutes only",
+			"*HQ,9001000002,V8,213945,A,3542.2043,N,38.6508,W,0.00,170,221025,FBFFF9FF,0,0,0,0,22,31,126,0#",
+			35.703405,
+			-0.64418,
+		},
+		{
+			"V1 without optional network fields",
+			"*HQ,865205035331981,V1,132926,A,1935.3933,N,07920.4134,E,  3.34,342,280519,FFFFFFFF#",
+			19.589888,
+			79.340223,
+		},
+		{
+			"V1 Polish coordinates and extended fields",
+			"*HQ,4210209006,V1,054048,A,2828.2297,N,07733.4332,E,000.5,047,080918,EEE7FBDF,4261193,0#",
+			28.470495,
+			77.55722,
+		},
+		{
+			"V1 hexadecimal network codes",
+			"*HQ,353588020068342,V1,084436,A,3257.01525,N,00655.03865,W,57.78,40,011216,FFFBFFFF,25c,a,154,b04c#",
+			32.950254,
+			-6.917311,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := sinotrack.ParseLocation(test.frame)
+			if err != nil {
+				t.Fatalf("ParseLocation() error = %v", err)
+			}
+			if got.Latitude != test.latitude || got.Longitude != test.longitude {
+				t.Errorf("coordinates = (%f, %f), want (%f, %f)", got.Latitude, got.Longitude, test.latitude, test.longitude)
+			}
+		})
+	}
+}
+
 func TestParseLocationRejectsInvalidFrames(t *testing.T) {
 	tests := []struct {
 		name  string
