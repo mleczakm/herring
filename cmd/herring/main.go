@@ -73,7 +73,7 @@ func main() {
 		os.Exit(1)
 	}
 	httpHandler := httpapi.New(store, smsSender, httpapi.Config{
-		SetupToken: setupToken, WebhookSecret: os.Getenv("HERRING_SENDLY_WEBHOOK_SECRET"), SecureCookies: os.Getenv("HERRING_ENV") == "production",
+		SetupToken: setupToken, WebhookSecret: os.Getenv("HERRING_SENDLY_WEBHOOK_SECRET"), PublicOrigin: os.Getenv("HERRING_PUBLIC_ORIGIN"), SecureCookies: os.Getenv("HERRING_ENV") == "production",
 		Tracker: st901.Profile{Password: environment("HERRING_TRACKER_PASSWORD", "0000"), ControlNumber: os.Getenv("HERRING_SENDLY_FROM"), APN: os.Getenv("HERRING_TRACKER_APN"), ServerHost: os.Getenv("HERRING_TRACKER_PUBLIC_HOST"), ServerPort: trackerPort, MovingInterval: movingInterval, StoppedInterval: stoppedInterval},
 	}, logger)
 	httpServer := &http.Server{

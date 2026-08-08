@@ -47,6 +47,7 @@ type Store interface {
 }
 type Config struct {
 	SetupToken, WebhookSecret string
+	PublicOrigin              string
 	SecureCookies             bool
 	Tracker                   st901.Profile
 }
@@ -111,7 +112,7 @@ func (s *Server) showLogin(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "login", 200, nil)
 }
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
-	if !sameOrigin(r) {
+	if !s.sameOrigin(r) {
 		http.Error(w, "invalid request origin", 403)
 		return
 	}
@@ -132,7 +133,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", 303)
 }
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
-	if !sameOrigin(r) {
+	if !s.sameOrigin(r) {
 		http.Error(w, "invalid request origin", 403)
 		return
 	}
@@ -156,7 +157,7 @@ func (s *Server) createDevice(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", 401)
 		return
 	}
-	if !sameOrigin(r) {
+	if !s.sameOrigin(r) {
 		http.Error(w, "invalid request origin", 403)
 		return
 	}
@@ -298,7 +299,7 @@ func (s *Server) showSetup(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "setup", 200, map[string]any{"TokenRequired": s.config.SetupToken != ""})
 }
 func (s *Server) createAdmin(w http.ResponseWriter, r *http.Request) {
-	if !sameOrigin(r) {
+	if !s.sameOrigin(r) {
 		http.Error(w, "invalid request origin", 403)
 		return
 	}
@@ -385,13 +386,20 @@ func secureEqual(a, b string) bool {
 	bh := sha256.Sum256([]byte(b))
 	return subtle.ConstantTimeCompare(ah[:], bh[:]) == 1
 }
-func sameOrigin(r *http.Request) bool {
+func (s *Server) sameOrigin(r *http.Request) bool {
 	o := r.Header.Get("Origin")
 	if o == "" {
 		return true
 	}
 	u, e := url.Parse(o)
-	return e == nil && strings.EqualFold(u.Host, r.Host)
+	if e != nil || u.Scheme == "" || u.Host == "" {
+		return false
+	}
+	if s.config.PublicOrigin != "" {
+		expected, err := url.Parse(s.config.PublicOrigin)
+		return err == nil && strings.EqualFold(u.Scheme, expected.Scheme) && strings.EqualFold(u.Host, expected.Host)
+	}
+	return strings.EqualFold(u.Host, r.Host)
 }
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

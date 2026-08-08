@@ -60,6 +60,21 @@ func TestSetupRejectsCrossOrigin(t *testing.T) {
 		t.Fatalf("response %d", w.Code)
 	}
 }
+
+func TestSetupAcceptsConfiguredPublicOriginBehindProxy(t *testing.T) {
+	server, _ := testServer(t, "")
+	server.config.PublicOrigin = "https://xn--led-bza2n.mleczki.pl"
+	form := validSetupForm()
+	r := httptest.NewRequest("POST", "http://herring:8080/setup", strings.NewReader(form.Encode()))
+	r.Host = "herring:8080"
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Set("Origin", "https://xn--led-bza2n.mleczki.pl")
+	w := httptest.NewRecorder()
+	server.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("response %d: %s", w.Code, w.Body.String())
+	}
+}
 func validSetupForm() url.Values {
 	return url.Values{"display_name": {"Michał"}, "email": {"admin@example.com"}, "password": {"correct horse battery staple"}, "password_confirmation": {"correct horse battery staple"}}
 }
