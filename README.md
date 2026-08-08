@@ -24,4 +24,14 @@ go test ./...
 go run ./cmd/herring
 ```
 
+The process exposes HTTP on `:8080` and the SinoTrack TCP listener on `:8090`.
+Override them with `HERRING_HTTP_ADDR` and `HERRING_TRACKER_ADDR`. The HTTP
+health probe is `GET /healthz`.
+
+Build the production container with:
+
+```shell
+docker build -t herring .
+```
+
 Herring is licensed under the MIT License.
