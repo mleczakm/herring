@@ -71,10 +71,9 @@ redirects an empty installation to `/setup`. Enter the value of
 password of 12–72 bytes. Passwords are stored only as bcrypt hashes.
 
 The database accepts only one initial administrator, including under concurrent
-requests. Once created, `/setup` redirects to the application home page. Rotate
-`HERRING_SETUP_TOKEN` in `DOTENV` afterward. Keep the rotated value non-empty
-because every production start deliberately requires one, although it cannot
-reopen setup while an administrator exists.
+requests. Once created, `/setup` redirects to the application home page. Remove
+`HERRING_SETUP_TOKEN` from `DOTENV` afterward; production requires it only while
+the database has no users, and removing it reduces retained bootstrap secrets.
 
 ## Manual deployment
 

@@ -26,16 +26,23 @@ func main() {
 	trackerAddress := environment("HERRING_TRACKER_ADDR", ":8090")
 	databasePath := environment("HERRING_DATABASE_PATH", "herring.db")
 	setupToken := os.Getenv("HERRING_SETUP_TOKEN")
-	if os.Getenv("HERRING_ENV") == "production" && setupToken == "" {
-		logger.Error("HERRING_SETUP_TOKEN is required in production")
-		os.Exit(1)
-	}
 	store, err := sqlite.Open(ctx, databasePath)
 	if err != nil {
 		logger.Error("could not open database", "error", err)
 		os.Exit(1)
 	}
 	defer store.Close()
+	if os.Getenv("HERRING_ENV") == "production" && setupToken == "" {
+		setupRequired, err := store.SetupRequired(ctx)
+		if err != nil {
+			logger.Error("could not determine setup status", "error", err)
+			os.Exit(1)
+		}
+		if setupRequired {
+			logger.Error("HERRING_SETUP_TOKEN is required for initial production setup")
+			os.Exit(1)
+		}
+	}
 	for _, deviceID := range configuredDeviceIDs(os.Getenv("HERRING_DEVICE_IDS")) {
 		if err := store.RegisterDevice(ctx, deviceID); err != nil {
 			logger.Error("could not register configured device", "device_id", deviceID, "error", err)

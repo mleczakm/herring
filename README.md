@@ -35,9 +35,9 @@ change the location and provide a comma-separated allowlist of tracker IDs in
 foreign-key boundary.
 
 On a new database, opening `/` redirects to `/setup`, where the first
-administrator can be registered. When `HERRING_ENV=production`, Herring refuses
-to start without `HERRING_SETUP_TOKEN`; the setup form requires that token and
-closes permanently after the administrator is created.
+administrator can be registered. When `HERRING_ENV=production`, an empty
+installation refuses to start without `HERRING_SETUP_TOKEN`; the setup form
+requires that token and closes permanently after the administrator is created.
 
 Build the production container with:
 
