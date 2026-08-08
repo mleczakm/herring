@@ -28,6 +28,34 @@ CREATE TABLE IF NOT EXISTS devices (
     created_at TEXT NOT NULL
 ) STRICT;
 
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS managed_devices (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT '',
+    model TEXT NOT NULL CHECK (model IN ('st901-2g', 'st901-4g')),
+    phone_number TEXT NOT NULL UNIQUE,
+    tracker_id TEXT UNIQUE,
+    config_status TEXT NOT NULL CHECK (config_status IN ('sending','awaiting_reply','configured','failed')),
+    config_detail TEXT NOT NULL DEFAULT '',
+    config_started_at TEXT NOT NULL,
+    config_verified_at TEXT
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS sms_commands (
+    id INTEGER PRIMARY KEY,
+    managed_device_id INTEGER NOT NULL REFERENCES managed_devices(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    provider_message_id TEXT UNIQUE,
+    delivery_status TEXT NOT NULL,
+    created_at TEXT NOT NULL
+) STRICT;
+
 CREATE TABLE IF NOT EXISTS positions (
     id INTEGER PRIMARY KEY,
     device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
@@ -48,6 +76,17 @@ CREATE TABLE IF NOT EXISTS positions (
 CREATE INDEX IF NOT EXISTS positions_device_time_idx
     ON positions (device_id, tracker_time DESC);
 `
+
+type User struct {
+	ID                               int64
+	Email, DisplayName, PasswordHash string
+}
+type ManagedDevice struct {
+	ID                                                              int64
+	Name, Model, PhoneNumber, TrackerID, ConfigStatus, ConfigDetail string
+	ConfigStartedAt                                                 time.Time
+	ConfigVerifiedAt                                                *time.Time
+}
 
 // ErrSetupComplete means the initial administrator already exists.
 var ErrSetupComplete = errors.New("initial setup is already complete")
@@ -120,6 +159,100 @@ func (s *Store) CreateInitialAdmin(ctx context.Context, email, displayName, pass
 		return ErrSetupComplete
 	}
 	return nil
+}
+
+func (s *Store) UserByEmail(ctx context.Context, email string) (User, error) {
+	var user User
+	err := s.database.QueryRowContext(ctx, `SELECT id,email,display_name,password_hash FROM users WHERE email = ?`, strings.TrimSpace(strings.ToLower(email))).Scan(&user.ID, &user.Email, &user.DisplayName, &user.PasswordHash)
+	if err != nil {
+		return User{}, err
+	}
+	return user, nil
+}
+
+func (s *Store) CreateSession(ctx context.Context, tokenHash string, userID int64, expiresAt time.Time) error {
+	_, err := s.database.ExecContext(ctx, `INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)`, tokenHash, userID, formatTime(expiresAt), formatTime(time.Now()))
+	return err
+}
+
+func (s *Store) SessionUser(ctx context.Context, tokenHash string, now time.Time) (User, error) {
+	var user User
+	err := s.database.QueryRowContext(ctx, `SELECT u.id,u.email,u.display_name,u.password_hash FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?`, tokenHash, formatTime(now)).Scan(&user.ID, &user.Email, &user.DisplayName, &user.PasswordHash)
+	return user, err
+}
+
+func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
+	_, err := s.database.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash=?`, tokenHash)
+	return err
+}
+
+func (s *Store) CreateManagedDevice(ctx context.Context, name, model, phone string) (ManagedDevice, error) {
+	now := time.Now()
+	result, err := s.database.ExecContext(ctx, `INSERT INTO managed_devices(name,model,phone_number,config_status,config_started_at) VALUES(?,?,?,'sending',?)`, strings.TrimSpace(name), model, phone, formatTime(now))
+	if err != nil {
+		return ManagedDevice{}, fmt.Errorf("create managed device: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	return ManagedDevice{ID: id, Name: strings.TrimSpace(name), Model: model, PhoneNumber: phone, ConfigStatus: "sending", ConfigStartedAt: now}, nil
+}
+
+func (s *Store) ManagedDevices(ctx context.Context) ([]ManagedDevice, error) {
+	rows, err := s.database.QueryContext(ctx, `SELECT id,name,model,phone_number,COALESCE(tracker_id,''),config_status,config_detail,config_started_at,config_verified_at FROM managed_devices ORDER BY id DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ManagedDevice
+	for rows.Next() {
+		d, err := scanManaged(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) ManagedDeviceByID(ctx context.Context, id int64) (ManagedDevice, error) {
+	return scanManaged(s.database.QueryRowContext(ctx, `SELECT id,name,model,phone_number,COALESCE(tracker_id,''),config_status,config_detail,config_started_at,config_verified_at FROM managed_devices WHERE id=?`, id))
+}
+func (s *Store) ManagedDeviceByPhone(ctx context.Context, phone string) (ManagedDevice, error) {
+	return scanManaged(s.database.QueryRowContext(ctx, `SELECT id,name,model,phone_number,COALESCE(tracker_id,''),config_status,config_detail,config_started_at,config_verified_at FROM managed_devices WHERE phone_number=?`, phone))
+}
+
+type scanner interface{ Scan(...any) error }
+
+func scanManaged(row scanner) (ManagedDevice, error) {
+	var d ManagedDevice
+	var started string
+	var verified sql.NullString
+	err := row.Scan(&d.ID, &d.Name, &d.Model, &d.PhoneNumber, &d.TrackerID, &d.ConfigStatus, &d.ConfigDetail, &started, &verified)
+	if err != nil {
+		return d, err
+	}
+	d.ConfigStartedAt, _ = time.Parse(time.RFC3339Nano, started)
+	if verified.Valid {
+		t, _ := time.Parse(time.RFC3339Nano, verified.String)
+		d.ConfigVerifiedAt = &t
+	}
+	return d, nil
+}
+
+func (s *Store) RecordSMSCommand(ctx context.Context, deviceID int64, kind, messageID, status string) error {
+	_, err := s.database.ExecContext(ctx, `INSERT INTO sms_commands(managed_device_id,kind,provider_message_id,delivery_status,created_at) VALUES(?,?,?,?,?)`, deviceID, kind, messageID, status, formatTime(time.Now()))
+	return err
+}
+func (s *Store) UpdateSMSDelivery(ctx context.Context, messageID, status string) error {
+	_, err := s.database.ExecContext(ctx, `UPDATE sms_commands SET delivery_status=? WHERE provider_message_id=?`, status, messageID)
+	return err
+}
+func (s *Store) SetConfigurationStatus(ctx context.Context, id int64, status, detail string) error {
+	var verified any
+	if status == "configured" {
+		verified = formatTime(time.Now())
+	}
+	_, err := s.database.ExecContext(ctx, `UPDATE managed_devices SET config_status=?,config_detail=?,config_verified_at=COALESCE(?,config_verified_at) WHERE id=?`, status, detail, verified, id)
+	return err
 }
 
 // RegisterDevice makes a tracker identifier eligible for ingestion.
