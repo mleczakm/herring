@@ -228,7 +228,14 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
-	var event struct{ Type, From, To, Body, MessageID, Status string }
+	var event struct {
+		Type      string `json:"type"`
+		From      string `json:"from"`
+		To        string `json:"to"`
+		Body      string `json:"body"`
+		MessageID string `json:"message_id"`
+		Status    string `json:"status"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
 		http.Error(w, "invalid event", 400)
 		return
