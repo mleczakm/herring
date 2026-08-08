@@ -1,0 +1,6 @@
+/herring
+/.env
+/.idea/
+/.vscode/
+*.local
+coverage.out
