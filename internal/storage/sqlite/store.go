@@ -4,7 +4,9 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/mleczakm/herring/internal/protocol/sinotrack"
@@ -12,6 +14,15 @@ import (
 )
 
 const schema = `
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    display_name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('admin')),
+    created_at TEXT NOT NULL
+) STRICT;
+
 CREATE TABLE IF NOT EXISTS devices (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL
@@ -37,6 +48,9 @@ CREATE TABLE IF NOT EXISTS positions (
 CREATE INDEX IF NOT EXISTS positions_device_time_idx
     ON positions (device_id, tracker_time DESC);
 `
+
+// ErrSetupComplete means the initial administrator already exists.
+var ErrSetupComplete = errors.New("initial setup is already complete")
 
 // Store owns a deliberately small connection pool. SQLite WAL supports
 // concurrent readers, while one application write connection avoids lock
@@ -69,6 +83,43 @@ func Open(ctx context.Context, path string) (*Store, error) {
 // Close closes the database connection.
 func (s *Store) Close() error {
 	return s.database.Close()
+}
+
+// SetupRequired reports whether the database has no users yet.
+func (s *Store) SetupRequired(ctx context.Context) (bool, error) {
+	var exists bool
+	if err := s.database.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM users)").Scan(&exists); err != nil {
+		return false, fmt.Errorf("check initial setup: %w", err)
+	}
+	return !exists, nil
+}
+
+// CreateInitialAdmin atomically creates the first and only bootstrap user.
+// Password hashing is intentionally performed before entering the storage
+// boundary so the transaction remains short.
+func (s *Store) CreateInitialAdmin(ctx context.Context, email, displayName, passwordHash string) error {
+	email = strings.TrimSpace(strings.ToLower(email))
+	displayName = strings.TrimSpace(displayName)
+	if email == "" || displayName == "" || passwordHash == "" {
+		return fmt.Errorf("initial administrator fields must not be empty")
+	}
+
+	result, err := s.database.ExecContext(ctx, `
+        INSERT INTO users (email, display_name, password_hash, role, created_at)
+        SELECT ?, ?, ?, 'admin', ?
+        WHERE NOT EXISTS (SELECT 1 FROM users)`,
+		email, displayName, passwordHash, formatTime(time.Now()))
+	if err != nil {
+		return fmt.Errorf("create initial administrator: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check initial administrator result: %w", err)
+	}
+	if rows == 0 {
+		return ErrSetupComplete
+	}
+	return nil
 }
 
 // RegisterDevice makes a tracker identifier eligible for ingestion.

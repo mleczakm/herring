@@ -2,12 +2,48 @@ package sqlite
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/mleczakm/herring/internal/protocol/sinotrack"
 )
+
+func TestInitialAdminCanOnlyBeCreatedOnce(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "herring.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	required, err := store.SetupRequired(ctx)
+	if err != nil || !required {
+		t.Fatalf("SetupRequired() = (%v, %v), want (true, nil)", required, err)
+	}
+	if err := store.CreateInitialAdmin(ctx, " Admin@Example.com ", " Michał ", "password-hash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateInitialAdmin(ctx, "other@example.com", "Other", "other-hash"); !errors.Is(err, ErrSetupComplete) {
+		t.Fatalf("second CreateInitialAdmin() error = %v, want %v", err, ErrSetupComplete)
+	}
+	required, err = store.SetupRequired(ctx)
+	if err != nil || required {
+		t.Fatalf("SetupRequired() = (%v, %v), want (false, nil)", required, err)
+	}
+
+	var email, displayName, role, passwordHash string
+	if err := store.database.QueryRow(`
+        SELECT email, display_name, role, password_hash FROM users`).Scan(
+		&email, &displayName, &role, &passwordHash,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if email != "admin@example.com" || displayName != "Michał" || role != "admin" || passwordHash != "password-hash" {
+		t.Errorf("unexpected admin: email=%q name=%q role=%q hash=%q", email, displayName, role, passwordHash)
+	}
+}
 
 func TestStorePersistsLocationAndIgnoresExactDuplicate(t *testing.T) {
 	ctx := context.Background()
