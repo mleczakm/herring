@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -14,7 +15,9 @@ import (
 	"github.com/mleczakm/herring/internal/httpapi"
 	"github.com/mleczakm/herring/internal/ingest"
 	"github.com/mleczakm/herring/internal/protocol/sinotrack"
+	"github.com/mleczakm/herring/internal/sms/sendly"
 	"github.com/mleczakm/herring/internal/storage/sqlite"
+	"github.com/mleczakm/herring/internal/tracker/st901"
 )
 
 func main() {
@@ -50,7 +53,29 @@ func main() {
 		}
 	}
 
-	httpHandler := httpapi.New(store, setupToken, logger)
+	var smsSender httpapi.Sender
+	if os.Getenv("HERRING_SENDLY_TOKEN") != "" && os.Getenv("HERRING_SENDLY_FROM") != "" {
+		smsSender = &sendly.Client{Token: os.Getenv("HERRING_SENDLY_TOKEN"), From: os.Getenv("HERRING_SENDLY_FROM")}
+	}
+	trackerPort, err := strconv.Atoi(environment("HERRING_TRACKER_PUBLIC_PORT", "20115"))
+	if err != nil {
+		logger.Error("invalid tracker public port")
+		os.Exit(1)
+	}
+	movingInterval, err := strconv.Atoi(environment("HERRING_TRACKER_MOVING_INTERVAL", "20"))
+	if err != nil {
+		logger.Error("invalid moving interval")
+		os.Exit(1)
+	}
+	stoppedInterval, err := strconv.Atoi(environment("HERRING_TRACKER_STOPPED_INTERVAL", "300"))
+	if err != nil {
+		logger.Error("invalid stopped interval")
+		os.Exit(1)
+	}
+	httpHandler := httpapi.New(store, smsSender, httpapi.Config{
+		SetupToken: setupToken, WebhookSecret: os.Getenv("HERRING_SENDLY_WEBHOOK_SECRET"), SecureCookies: os.Getenv("HERRING_ENV") == "production",
+		Tracker: st901.Profile{Password: environment("HERRING_TRACKER_PASSWORD", "0000"), ControlNumber: os.Getenv("HERRING_SENDLY_FROM"), APN: os.Getenv("HERRING_TRACKER_APN"), ServerHost: os.Getenv("HERRING_TRACKER_PUBLIC_HOST"), ServerPort: trackerPort, MovingInterval: movingInterval, StoppedInterval: stoppedInterval},
+	}, logger)
 	httpServer := &http.Server{
 		Addr:              httpAddress,
 		Handler:           httpHandler.Handler(),

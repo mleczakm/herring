@@ -39,6 +39,29 @@ administrator can be registered. When `HERRING_ENV=production`, an empty
 installation refuses to start without `HERRING_SETUP_TOKEN`; the setup form
 requires that token and closes permanently after the administrator is created.
 
+After login, adding an ST-901 needs only its variant and SIM number. Herring
+uses the installation profile to send the control number, APN, TCP endpoint,
+reporting intervals, GPRS mode and a final `RCONF` query through Sendly. The UI
+shows the live state and only reports **configured** after the tracker's inbound
+reply matches the expected APN and endpoint—not merely after Sendly accepts or
+delivers the outgoing messages.
+
+The production `DOTENV` secret must also contain:
+
+```dotenv
+HERRING_SENDLY_TOKEN=...
+HERRING_SENDLY_FROM=48500100200
+HERRING_SENDLY_WEBHOOK_SECRET=<random-high-entropy-value>
+HERRING_TRACKER_APN=internet
+HERRING_TRACKER_PUBLIC_HOST=65.108.44.244
+```
+
+Configure Sendly's incoming-message and delivery webhook as
+`https://śledź.mleczki.pl/webhooks/sendly/<HERRING_SENDLY_WEBHOOK_SECRET>`.
+Sendly does not authenticate or retry webhooks, so the secret URL must not be
+published. The tracker password defaults to `0000`; it can be overridden with
+`HERRING_TRACKER_PASSWORD`.
+
 Build the production container with:
 
 ```shell
