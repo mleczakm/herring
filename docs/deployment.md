@@ -37,13 +37,18 @@ should be restricted to the protected `production` environment.
 
 ## Network paths
 
-- HTTPS: Cloudflare/Cytrus → Mikrus IPv6 port `8080` → container port `8080`.
+- HTTPS: Cloudflare/Cytrus → Mikrus IPv6 port `8081` → container port `8080`.
 - Tracker: public IPv4 and `TRACKER_PUBLIC_PORT` → container TCP port `8090`.
 
 Cloudflare's regular HTTP proxy does not carry the tracker protocol. Before the
 first release, confirm in Mikrus/Cytrus that `TRACKER_PUBLIC_PORT` is assigned and
 reachable over raw TCP. Configure ST-901 command `804` with the public IPv4 and
 that port, not the proxied web hostname.
+
+Cargo already owns IPv6 port `8080` on this VPS, so Herring intentionally uses
+host port `8081`. The Cytrus target for `xn--led-bza2n.mleczki.pl` must therefore
+be `http://[2a01:4f9:6b:50ae::115]:8081`. The Cloudflare proxied A record points
+to Cytrus at `135.181.95.85`; it does not point directly to the VPS shared IPv4.
 
 ## SQLite persistence and recovery
 

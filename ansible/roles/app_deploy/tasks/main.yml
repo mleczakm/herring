@@ -127,7 +127,13 @@
 
 - name: Find existing Cloudflare A record
   ansible.builtin.set_fact:
-    existing_record: "{{ cf_records.json.result | selectattr('name', 'equalto', app.domain) | selectattr('type', 'equalto', 'A') | first | default(None) }}"
+    existing_a_record: "{{ cf_records.json.result | selectattr('name', 'equalto', app.domain) | selectattr('type', 'equalto', 'A') | first | default(None) }}"
+    existing_cname_record: "{{ cf_records.json.result | selectattr('name', 'equalto', app.domain) | selectattr('type', 'equalto', 'CNAME') | first | default(None) }}"
+  when: cloudflare_api_token is defined and cf_records.json.result is defined
+
+- name: Select Cloudflare record to upsert
+  ansible.builtin.set_fact:
+    existing_record: "{{ existing_a_record if existing_a_record is not none else existing_cname_record }}"
   when: cloudflare_api_token is defined and cf_records.json.result is defined
 
 - name: Create Cloudflare A record

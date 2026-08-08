@@ -2,7 +2,7 @@
 apps:
   - name: herring
     domain: "{{ domain | default('xn--led-bza2n.mleczki.pl') }}"
-    http_port: 8080
+    http_port: 8081
     tracker_public_port: "{{ tracker_public_port }}"
     image: "ghcr.io/mleczakm/herring:{{ app_version | default('latest') }}"
     data_volume: herring-data
