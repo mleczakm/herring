@@ -51,14 +51,14 @@ future channels.
 - Go module, configuration loading, structured logging, health endpoint.
 - Streaming TCP listener with connection and frame size limits.
 - ST-901 location parser and table-driven tests using sanitized fixtures.
-- Docker-based local Postgres and CI checks.
+- SQLite schema/migrations and CI checks.
 
 Exit criterion: an ST-901 pointed at a test instance produces validated decoded
 frames visible in logs without crashing or leaking connections.
 
 ### M1 — single-user tracking MVP
 
-- PostgreSQL schema for users, devices, positions, and device state.
+- SQLite schema for users, devices, positions, and device state.
 - Authentication and device ownership.
 - Position ingestion with raw-frame audit, deduplication, and retention policy.
 - REST API and responsive map showing current position and history.
@@ -103,8 +103,12 @@ delivered to installed Android and iOS PWAs.
 
 - Modular monolith first: one repository and deployable Go binary, with TCP and
   HTTP listeners and background workers separated by internal packages.
-- PostgreSQL is the source of truth. Start with native `point`/numeric columns;
-  add PostGIS when polygon/geospatial query needs justify it.
+- SQLite is the source of truth. Enable WAL mode, foreign keys, a busy timeout,
+  and a controlled write path. Store coordinates as validated numeric columns;
+  evaluate circles/polygons in Go and add SQLite R*Tree indexes only when the
+  measured device/geofence scale justifies them.
+- Use SQLite's online backup mechanism or `VACUUM INTO` for consistent backups;
+  copying only the main database file while WAL mode is active is not a backup.
 - At-least-once processing with idempotent consumers and a transactional outbox.
 - Server-side alert evaluation; device-native alarms may be ingested but are not
   the only source of truth.

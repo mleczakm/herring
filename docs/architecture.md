@@ -11,7 +11,7 @@ Sendly <-- REST SMS -- command service   HTTP API          outbox worker
    |                    ^                  |                    |
    +-- webhook replies -+                  +--> PWA <-- Web Push+
                                             |
-                                         PostgreSQL
+                                           SQLite
 ```
 
 ## Runtime components
@@ -29,6 +29,8 @@ Sendly <-- REST SMS -- command service   HTTP API          outbox worker
 - `internal/notify`: transactional outbox consumers and Web Push delivery.
 - `internal/httpapi`: authentication, device/history/configuration API, static
   PWA assets, and webhook endpoint.
+- `internal/storage/sqlite`: schema migrations, transactional repositories,
+  connection pragmas, retention, and consistent backup operations.
 
 ## Data model outline
 
@@ -66,3 +68,7 @@ Sendly <-- REST SMS -- command service   HTTP API          outbox worker
 - Duplicate device frames and webhook deliveries are harmless.
 - Alert state is persisted, so restarts do not repeat movement/geofence events.
 - Daily summaries are scheduled in the user's time zone with DST-safe semantics.
+- SQLite runs with WAL, foreign keys, a busy timeout, and a bounded connection
+  pool. Long reads are paginated so they do not delay checkpoints indefinitely.
+- Deployment mounts the database and its WAL sidecars on persistent local
+  storage; backups use a SQLite-aware snapshot rather than a plain live copy.
