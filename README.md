@@ -28,6 +28,11 @@ The process exposes HTTP on `:8080` and the SinoTrack TCP listener on `:8090`.
 Override them with `HERRING_HTTP_ADDR` and `HERRING_TRACKER_ADDR`. The HTTP
 health probe is `GET /healthz`.
 
+Positions are stored in SQLite at `herring.db`. Set `HERRING_DATABASE_PATH` to
+change the location and provide a comma-separated allowlist of tracker IDs in
+`HERRING_DEVICE_IDS`; frames from other IDs are rejected by the database
+foreign-key boundary.
+
 Build the production container with:
 
 ```shell

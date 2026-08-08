@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/mleczakm/herring/internal/ingest"
 	"github.com/mleczakm/herring/internal/protocol/sinotrack"
+	"github.com/mleczakm/herring/internal/storage/sqlite"
 )
 
 func main() {
@@ -22,6 +24,19 @@ func main() {
 
 	httpAddress := environment("HERRING_HTTP_ADDR", ":8080")
 	trackerAddress := environment("HERRING_TRACKER_ADDR", ":8090")
+	databasePath := environment("HERRING_DATABASE_PATH", "herring.db")
+	store, err := sqlite.Open(ctx, databasePath)
+	if err != nil {
+		logger.Error("could not open database", "error", err)
+		os.Exit(1)
+	}
+	defer store.Close()
+	for _, deviceID := range configuredDeviceIDs(os.Getenv("HERRING_DEVICE_IDS")) {
+		if err := store.RegisterDevice(ctx, deviceID); err != nil {
+			logger.Error("could not register configured device", "device_id", deviceID, "error", err)
+			os.Exit(1)
+		}
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(response http.ResponseWriter, _ *http.Request) {
@@ -38,8 +53,12 @@ func main() {
 	trackerServer := &ingest.Server{
 		Addr:   trackerAddress,
 		Logger: logger,
-		OnLocation: func(_ context.Context, location sinotrack.Location) error {
-			// Persistence is the next application boundary. Never log raw frames.
+		OnLocation: func(ctx context.Context, location sinotrack.Location) error {
+			receivedAt := time.Now()
+			if err := store.SaveLocation(ctx, receivedAt, location); err != nil {
+				return err
+			}
+			// Never log raw frames because future variants can contain sensitive data.
 			logger.Info("tracker location received",
 				"device_id", location.DeviceID,
 				"tracker_time", location.TrackerTime,
@@ -76,6 +95,16 @@ func main() {
 	if err := httpServer.Shutdown(shutdownContext); err != nil {
 		logger.Error("HTTP shutdown failed", "error", err)
 	}
+}
+
+func configuredDeviceIDs(value string) []string {
+	var result []string
+	for _, deviceID := range strings.Split(value, ",") {
+		if deviceID = strings.TrimSpace(deviceID); deviceID != "" {
+			result = append(result, deviceID)
+		}
+	}
+	return result
 }
 
 func environment(name, fallback string) string {
