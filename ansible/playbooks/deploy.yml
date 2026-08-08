@@ -1,0 +1,13 @@
+---
+- name: Deploy Herring
+  hosts: mikrus
+  become: true
+  vars_files:
+    - config.yml
+  tasks:
+    - name: Deploy Herring app
+      ansible.builtin.include_role:
+        name: app_deploy
+      loop: "{{ apps }}"
+      loop_control:
+        loop_var: app

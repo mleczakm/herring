@@ -13,7 +13,8 @@ The project is at an early stage. The initial milestone covers:
 - installable PWA and Web Push notifications.
 
 See [the implementation plan](docs/plan.md) and
-[architecture notes](docs/architecture.md).
+[architecture notes](docs/architecture.md). Production releases use the
+[Mikrus deployment process](docs/deployment.md).
 
 ## Development
 

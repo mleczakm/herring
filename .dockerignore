@@ -1,0 +1,11 @@
+.git
+.github
+ansible
+docs
+*.md
+*.db
+*.db-shm
+*.db-wal
+.env*
+herring
+coverage.out

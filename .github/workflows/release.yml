@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && vars.RELEASE_ENABLED == 'true' }}
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Generate release version
+        id: version
+        env:
+          TZ: Europe/Warsaw
+        run: echo "value=$(date +'%Y%m%d%H%M')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.version.outputs.value }}
+          commit: ${{ github.event.workflow_run.head_sha }}
+          name: Release ${{ steps.version.outputs.value }}
+          body: Automated release generated after successful CI.
+          draft: false
+          prerelease: false
+          token: ${{ secrets.PAT_TOKEN }}
