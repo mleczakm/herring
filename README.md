@@ -34,6 +34,11 @@ change the location and provide a comma-separated allowlist of tracker IDs in
 `HERRING_DEVICE_IDS`; frames from other IDs are rejected by the database
 foreign-key boundary.
 
+On a new database, opening `/` redirects to `/setup`, where the first
+administrator can be registered. When `HERRING_ENV=production`, Herring refuses
+to start without `HERRING_SETUP_TOKEN`; the setup form requires that token and
+closes permanently after the administrator is created.
+
 Build the production container with:
 
 ```shell

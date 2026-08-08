@@ -21,7 +21,8 @@ Create the `production` environment and configure the same secrets as Cargo:
 - `CYTRUS_IPV4`, `CYTRUS_API_TOKEN`;
 - `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`;
 - `DOTENV` — production environment file content; initially it must contain
-  `HERRING_DEVICE_IDS=<comma-separated tracker identifiers>`;
+  `HERRING_DEVICE_IDS=<comma-separated tracker identifiers>` and a long random
+  `HERRING_SETUP_TOKEN=<one-time setup secret>`;
 - `TRACKER_PUBLIC_PORT` — the host TCP port assigned/routed to this Mikrus VPS.
 
 After the secrets, Cytrus domain, raw TCP port, and first backup are ready, set
@@ -46,14 +47,34 @@ that port, not the proxied web hostname.
 
 ## SQLite persistence and recovery
 
-The named volume `herring-data` is mounted at `/data`; the application writes
-`/data/herring.db` and its WAL sidecars. Replacing the container does not remove
-the volume. Never use `docker volume rm herring-data` during a deployment.
+The explicitly named volume `herring-data` is mounted at `/data`; the
+application writes `/data/herring.db` and its WAL sidecars. Ansible creates it
+before stopping the old container, labels it as persistent SQLite data, verifies
+its exact identity, and uses Docker's explicit `--mount type=volume` syntax.
+Replacing or removing the container does not remove this named volume.
+
+Never add `-v` to `docker rm`, run `docker volume prune`, or use
+`docker volume rm herring-data` during deployment. Docker labels document the
+volume's purpose but cannot prevent a privileged operator from explicitly
+deleting it; backups remain mandatory.
 
 A plain copy of only `herring.db` while Herring is running is not a consistent
 backup in WAL mode. Add a SQLite-aware backup job before storing production
 history; use the SQLite backup API or `VACUUM INTO`, then copy the resulting
 snapshot off the VPS. A restore drill is a production-readiness requirement.
+
+## First-run administrator
+
+After the first healthy deployment, open `https://śledź.mleczki.pl/`. Herring
+redirects an empty installation to `/setup`. Enter the value of
+`HERRING_SETUP_TOKEN`, then create the administrator with a valid email and a
+password of 12–72 bytes. Passwords are stored only as bcrypt hashes.
+
+The database accepts only one initial administrator, including under concurrent
+requests. Once created, `/setup` redirects to the application home page. Rotate
+`HERRING_SETUP_TOKEN` in `DOTENV` afterward. Keep the rotated value non-empty
+because every production start deliberately requires one, although it cannot
+reopen setup while an administrator exists.
 
 ## Manual deployment
 

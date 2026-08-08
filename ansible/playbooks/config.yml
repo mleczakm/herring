@@ -8,6 +8,7 @@ apps:
     data_volume: herring-data
     data_path: /data
     env:
+      HERRING_ENV: production
       HERRING_HTTP_ADDR: ":8080"
       HERRING_TRACKER_ADDR: ":8090"
       HERRING_DATABASE_PATH: /data/herring.db

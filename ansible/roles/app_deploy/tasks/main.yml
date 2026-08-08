@@ -10,6 +10,40 @@
   ansible.builtin.command: "docker pull {{ app.image }}"
   changed_when: true
 
+- name: Validate persistent volume name
+  ansible.builtin.assert:
+    that:
+      - app.data_volume is string
+      - app.data_volume | length > 0
+      - app.data_volume is match('^[a-zA-Z0-9][a-zA-Z0-9_.-]+$')
+    fail_msg: A safe explicit Docker volume name is required.
+
+- name: Inspect persistent data volume
+  ansible.builtin.command: "docker volume inspect {{ app.data_volume }}"
+  register: initial_volume_inspect
+  failed_when: false
+  changed_when: false
+
+- name: Create persistent named data volume
+  ansible.builtin.command: >-
+    docker volume create
+    --label pl.mleczki.herring.persistent=true
+    --label pl.mleczki.herring.purpose=sqlite
+    {{ app.data_volume }}
+  when: initial_volume_inspect.rc != 0
+  changed_when: true
+
+- name: Verify persistent data volume
+  ansible.builtin.command: "docker volume inspect {{ app.data_volume }}"
+  register: volume_inspect
+  changed_when: false
+
+- name: Confirm persistent volume identity
+  ansible.builtin.assert:
+    that:
+      - (volume_inspect.stdout | from_json | first).Name == app.data_volume
+    fail_msg: The persistent Docker volume could not be verified.
+
 - name: Stop existing container
   ansible.builtin.command: "docker stop {{ app.name }}"
   register: stop_result
@@ -21,11 +55,6 @@
   register: remove_result
   failed_when: remove_result.rc not in [0, 1]
   changed_when: remove_result.rc == 0
-
-- name: Create persistent data volume
-  ansible.builtin.command: "docker volume create {{ app.data_volume }}"
-  register: volume_result
-  changed_when: "'Created' in volume_result.stdout"
 
 - name: Read production environment
   ansible.builtin.slurp:
@@ -67,7 +96,7 @@
     -p [{{ app.ipv6 }}]:{{ app.http_port }}:8080
     -p {{ app.tracker_public_port }}:8090
     --env-file /tmp/{{ app.name }}.env
-    -v {{ app.data_volume }}:{{ app.data_path }}
+    --mount type=volume,src={{ app.data_volume }},dst={{ app.data_path }}
     {{ app.image }}
   changed_when: true
 
