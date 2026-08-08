@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mleczakm/herring/internal/httpapi"
 	"github.com/mleczakm/herring/internal/ingest"
 	"github.com/mleczakm/herring/internal/protocol/sinotrack"
 	"github.com/mleczakm/herring/internal/storage/sqlite"
@@ -25,6 +25,11 @@ func main() {
 	httpAddress := environment("HERRING_HTTP_ADDR", ":8080")
 	trackerAddress := environment("HERRING_TRACKER_ADDR", ":8090")
 	databasePath := environment("HERRING_DATABASE_PATH", "herring.db")
+	setupToken := os.Getenv("HERRING_SETUP_TOKEN")
+	if os.Getenv("HERRING_ENV") == "production" && setupToken == "" {
+		logger.Error("HERRING_SETUP_TOKEN is required in production")
+		os.Exit(1)
+	}
 	store, err := sqlite.Open(ctx, databasePath)
 	if err != nil {
 		logger.Error("could not open database", "error", err)
@@ -38,14 +43,10 @@ func main() {
 		}
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(response http.ResponseWriter, _ *http.Request) {
-		response.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(response).Encode(map[string]string{"status": "ok"})
-	})
+	httpHandler := httpapi.New(store, setupToken, logger)
 	httpServer := &http.Server{
 		Addr:              httpAddress,
-		Handler:           mux,
+		Handler:           httpHandler.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
