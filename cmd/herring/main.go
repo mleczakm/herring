@@ -57,7 +57,12 @@ func main() {
 	if os.Getenv("HERRING_SENDLY_TOKEN") != "" && os.Getenv("HERRING_SENDLY_FROM") != "" {
 		smsSender = &sendly.Client{Token: os.Getenv("HERRING_SENDLY_TOKEN"), From: os.Getenv("HERRING_SENDLY_FROM")}
 	}
-	trackerPort, err := strconv.Atoi(environment("HERRING_TRACKER_PUBLIC_PORT", "20115"))
+	trackerPortValue := os.Getenv("HERRING_TRACKER_PUBLIC_PORT")
+	if trackerPortValue == "" {
+		logger.Error("HERRING_TRACKER_PUBLIC_PORT is required")
+		os.Exit(1)
+	}
+	trackerPort, err := strconv.Atoi(trackerPortValue)
 	if err != nil {
 		logger.Error("invalid tracker public port")
 		os.Exit(1)
