@@ -75,6 +75,19 @@ func TestSetupAcceptsConfiguredPublicOriginBehindProxy(t *testing.T) {
 		t.Fatalf("response %d: %s", w.Code, w.Body.String())
 	}
 }
+func TestSetupAcceptsNullOriginFromNoReferrerPolicy(t *testing.T) {
+	server, _ := testServer(t, "")
+	server.config.PublicOrigin = "https://xn--led-bza2n.mleczki.pl"
+	form := validSetupForm()
+	r := httptest.NewRequest("POST", "https://xn--led-bza2n.mleczki.pl/setup", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Set("Origin", "null")
+	w := httptest.NewRecorder()
+	server.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("response %d: %s", w.Code, w.Body.String())
+	}
+}
 func validSetupForm() url.Values {
 	return url.Values{"display_name": {"Michał"}, "email": {"admin@example.com"}, "password": {"correct horse battery staple"}, "password_confirmation": {"correct horse battery staple"}}
 }

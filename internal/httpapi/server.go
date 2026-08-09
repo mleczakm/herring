@@ -388,7 +388,7 @@ func secureEqual(a, b string) bool {
 }
 func (s *Server) sameOrigin(r *http.Request) bool {
 	o := r.Header.Get("Origin")
-	if o == "" {
+	if o == "" || o == "null" {
 		return true
 	}
 	u, e := url.Parse(o)
