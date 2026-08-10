@@ -213,9 +213,6 @@ func (s *Store) ManagedDevices(ctx context.Context) ([]ManagedDevice, error) {
 	return out, rows.Err()
 }
 
-func (s *Store) ManagedDeviceByID(ctx context.Context, id int64) (ManagedDevice, error) {
-	return scanManaged(s.database.QueryRowContext(ctx, `SELECT id,name,model,phone_number,COALESCE(tracker_id,''),config_status,config_detail,config_started_at,config_verified_at FROM managed_devices WHERE id=?`, id))
-}
 func (s *Store) ManagedDeviceByPhone(ctx context.Context, phone string) (ManagedDevice, error) {
 	return scanManaged(s.database.QueryRowContext(ctx, `SELECT id,name,model,phone_number,COALESCE(tracker_id,''),config_status,config_detail,config_started_at,config_verified_at FROM managed_devices WHERE phone_number=?`, phone))
 }
@@ -236,6 +233,80 @@ func scanManaged(row scanner) (ManagedDevice, error) {
 		d.ConfigVerifiedAt = &t
 	}
 	return d, nil
+}
+
+// LinkTrackerIfUnambiguous associates an incoming tracker device ID with a
+// managed device the first time it reports in. It only links automatically
+// when exactly one managed device is still awaiting a tracker link, since a
+// phone-number-only setup has no other way to tell trackers apart.
+func (s *Store) LinkTrackerIfUnambiguous(ctx context.Context, deviceID string) error {
+	_, err := s.database.ExecContext(ctx, `
+        UPDATE managed_devices SET tracker_id=?
+        WHERE tracker_id IS NULL
+          AND NOT EXISTS (SELECT 1 FROM managed_devices WHERE tracker_id=?)
+          AND (SELECT COUNT(*) FROM managed_devices WHERE tracker_id IS NULL) = 1`,
+		deviceID, deviceID)
+	if err != nil {
+		return fmt.Errorf("link tracker %s: %w", deviceID, err)
+	}
+	return nil
+}
+
+// DevicePosition is a managed device paired with its latest known position,
+// if any tracker has linked and reported in yet.
+type DevicePosition struct {
+	Device                                 ManagedDevice
+	HasPosition                            bool
+	Latitude, Longitude, SpeedKPH, Heading float64
+	GPSValid                               bool
+	TrackerTime, ReceivedAt                time.Time
+}
+
+// LatestPositions returns every managed device paired with its most recent
+// position, ordered like ManagedDevices. Devices with no linked tracker or no
+// reports yet come back with HasPosition false.
+func (s *Store) LatestPositions(ctx context.Context) ([]DevicePosition, error) {
+	rows, err := s.database.QueryContext(ctx, `
+        SELECT md.id, md.name, md.model, md.phone_number, COALESCE(md.tracker_id,''), md.config_status, md.config_detail, md.config_started_at, md.config_verified_at,
+               p.latitude, p.longitude, p.speed_kph, p.heading, p.gps_valid, p.tracker_time, p.received_at
+        FROM managed_devices md
+        LEFT JOIN positions p ON p.id = (
+            SELECT p2.id FROM positions p2 WHERE p2.device_id = md.tracker_id ORDER BY p2.tracker_time DESC LIMIT 1
+        )
+        ORDER BY md.id DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("query latest positions: %w", err)
+	}
+	defer rows.Close()
+	var out []DevicePosition
+	for rows.Next() {
+		var (
+			dp                    DevicePosition
+			started               string
+			verified              sql.NullString
+			lat, lng, speed, head sql.NullFloat64
+			gpsValid              sql.NullBool
+			trackerTime, received sql.NullString
+		)
+		if err := rows.Scan(&dp.Device.ID, &dp.Device.Name, &dp.Device.Model, &dp.Device.PhoneNumber, &dp.Device.TrackerID, &dp.Device.ConfigStatus, &dp.Device.ConfigDetail, &started, &verified,
+			&lat, &lng, &speed, &head, &gpsValid, &trackerTime, &received); err != nil {
+			return nil, fmt.Errorf("scan latest position: %w", err)
+		}
+		dp.Device.ConfigStartedAt, _ = time.Parse(time.RFC3339Nano, started)
+		if verified.Valid {
+			t, _ := time.Parse(time.RFC3339Nano, verified.String)
+			dp.Device.ConfigVerifiedAt = &t
+		}
+		if lat.Valid {
+			dp.HasPosition = true
+			dp.Latitude, dp.Longitude, dp.SpeedKPH, dp.Heading = lat.Float64, lng.Float64, speed.Float64, head.Float64
+			dp.GPSValid = gpsValid.Bool
+			dp.TrackerTime, _ = time.Parse(time.RFC3339Nano, trackerTime.String)
+			dp.ReceivedAt, _ = time.Parse(time.RFC3339Nano, received.String)
+		}
+		out = append(out, dp)
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) RecordSMSCommand(ctx context.Context, deviceID int64, kind, messageID, status string) error {

@@ -93,6 +93,9 @@ func main() {
 		Logger: logger,
 		OnLocation: func(ctx context.Context, location sinotrack.Location) error {
 			receivedAt := time.Now()
+			if err := store.LinkTrackerIfUnambiguous(ctx, location.DeviceID); err != nil {
+				logger.Warn("could not link tracker to a managed device", "device_id", location.DeviceID, "error", err)
+			}
 			if err := store.SaveLocation(ctx, receivedAt, location); err != nil {
 				return err
 			}

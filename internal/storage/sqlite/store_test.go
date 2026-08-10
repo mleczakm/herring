@@ -107,6 +107,81 @@ func TestStoreRejectsUnknownDevice(t *testing.T) {
 	}
 }
 
+func TestLinkTrackerIfUnambiguousLinksSoleAwaitingDevice(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "herring.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	device, err := store.CreateManagedDevice(ctx, "Rower", "st901-2g", "+48500600700")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RegisterDevice(ctx, "1234567890"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.LinkTrackerIfUnambiguous(ctx, "1234567890"); err != nil {
+		t.Fatal(err)
+	}
+	location, err := sinotrack.ParseLocation(
+		"*HQ,1234567890,V1,120000,A,5213.1234,N,02100.5678,E,010.00,90,080826,FFFFFFFF,260,06#",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveLocation(ctx, time.Now(), location); err != nil {
+		t.Fatal(err)
+	}
+
+	positions, err := store.LatestPositions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(positions) != 1 || positions[0].Device.ID != device.ID {
+		t.Fatalf("positions = %+v", positions)
+	}
+	if !positions[0].HasPosition {
+		t.Fatalf("expected linked device to have a position: %+v", positions[0])
+	}
+	if positions[0].Device.TrackerID != "1234567890" {
+		t.Errorf("tracker_id = %q, want 1234567890", positions[0].Device.TrackerID)
+	}
+}
+
+func TestLinkTrackerIfUnambiguousSkipsWhenMultipleAwaiting(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "herring.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	if _, err := store.CreateManagedDevice(ctx, "Rower", "st901-2g", "+48500600700"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateManagedDevice(ctx, "Auto", "st901-4g", "+48500600701"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RegisterDevice(ctx, "1234567890"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.LinkTrackerIfUnambiguous(ctx, "1234567890"); err != nil {
+		t.Fatal(err)
+	}
+
+	positions, err := store.LatestPositions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range positions {
+		if p.Device.TrackerID != "" {
+			t.Errorf("device %d linked ambiguously: tracker_id=%q", p.Device.ID, p.Device.TrackerID)
+		}
+	}
+}
+
 func TestOpenEnablesRequiredPragmas(t *testing.T) {
 	store, err := Open(context.Background(), filepath.Join(t.TempDir(), "herring.db"))
 	if err != nil {

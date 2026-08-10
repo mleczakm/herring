@@ -20,6 +20,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/mleczakm/herring/internal/httpapi/assets"
 	"github.com/mleczakm/herring/internal/storage/sqlite"
 	"github.com/mleczakm/herring/internal/tracker/st901"
 	"golang.org/x/crypto/bcrypt"
@@ -39,7 +40,7 @@ type Store interface {
 	DeleteSession(context.Context, string) error
 	CreateManagedDevice(context.Context, string, string, string) (sqlite.ManagedDevice, error)
 	ManagedDevices(context.Context) ([]sqlite.ManagedDevice, error)
-	ManagedDeviceByID(context.Context, int64) (sqlite.ManagedDevice, error)
+	LatestPositions(context.Context) ([]sqlite.DevicePosition, error)
 	ManagedDeviceByPhone(context.Context, string) (sqlite.ManagedDevice, error)
 	RecordSMSCommand(context.Context, int64, string, string, string) error
 	UpdateSMSDelivery(context.Context, string, string) error
@@ -68,7 +69,11 @@ func New(store Store, sender Sender, config Config, logger *slog.Logger) *Server
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
-	mux.HandleFunc("GET /status.js", s.statusJS)
+	mux.HandleFunc("GET /assets/leaflet.js", s.asset("text/javascript; charset=utf-8", assets.LeafletJS))
+	mux.HandleFunc("GET /assets/leaflet.css", s.asset("text/css; charset=utf-8", assets.LeafletCSS))
+	mux.HandleFunc("GET /assets/space-grotesk-latin.woff2", s.asset("font/woff2", assets.SpaceGroteskLatin))
+	mux.HandleFunc("GET /assets/space-grotesk-latin-ext.woff2", s.asset("font/woff2", assets.SpaceGroteskLatinExt))
+	mux.HandleFunc("GET /assets/dashboard.js", s.asset("text/javascript; charset=utf-8", []byte(dashboardJS)))
 	mux.HandleFunc("GET /setup", s.showSetup)
 	mux.HandleFunc("POST /setup", s.createAdmin)
 	mux.HandleFunc("GET /login", s.showLogin)
@@ -76,7 +81,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /logout", s.logout)
 	mux.HandleFunc("GET /", s.home)
 	mux.HandleFunc("POST /devices", s.createDevice)
-	mux.HandleFunc("GET /api/devices/{id}/configuration", s.configuration)
+	mux.HandleFunc("GET /api/positions", s.positions)
 	mux.HandleFunc("POST /webhooks/sendly/{secret}", s.webhook)
 	return securityHeaders(mux)
 }
@@ -84,11 +89,6 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte("{\"status\":\"ok\"}\n"))
 }
-func (s *Server) statusJS(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-	_, _ = w.Write([]byte(`document.querySelectorAll('[data-device]').forEach(function(el){var id=el.dataset.device;var timer=setInterval(function(){fetch('/api/devices/'+id+'/configuration').then(function(r){return r.json()}).then(function(v){var p=el.querySelector('.status');p.className='status '+v.status;p.textContent=(v.configured?'✓ Skonfigurowany':v.status==='failed'?'⚠ Konfiguracja nieudana':'⏳ Konfigurowanie…')+' — '+v.detail;if(v.configured||v.status==='failed')clearInterval(timer)}).catch(function(){})},2000)});`))
-}
-
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	if s.redirectSetup(w, r) {
 		return
@@ -203,24 +203,56 @@ func (s *Server) createDevice(w http.ResponseWriter, r *http.Request) {
 	_ = s.store.SetConfigurationStatus(r.Context(), device.ID, "awaiting_reply", "SMS-y wysłane. Oczekiwanie na odpowiedź RCONF trackera.")
 	http.Redirect(w, r, "/?device="+strconv.FormatInt(device.ID, 10), 303)
 }
-func (s *Server) configuration(w http.ResponseWriter, r *http.Request) {
+func (s *Server) asset(contentType string, body []byte) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		_, _ = w.Write(body)
+	}
+}
+func (s *Server) positions(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.currentUser(r); !ok {
 		http.Error(w, "unauthorized", 401)
 		return
 	}
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	positions, err := s.store.LatestPositions(r.Context())
 	if err != nil {
-		http.Error(w, "invalid device", 400)
+		s.internalError(w, r, err)
 		return
 	}
-	d, err := s.store.ManagedDeviceByID(r.Context(), id)
-	if err != nil {
-		http.Error(w, "not found", 404)
-		return
+	type position struct {
+		ID           int64   `json:"id"`
+		Name         string  `json:"name"`
+		Model        string  `json:"model"`
+		ConfigStatus string  `json:"config_status"`
+		ConfigDetail string  `json:"config_detail"`
+		HasPosition  bool    `json:"has_position"`
+		Latitude     float64 `json:"latitude,omitempty"`
+		Longitude    float64 `json:"longitude,omitempty"`
+		SpeedKPH     float64 `json:"speed_kph,omitempty"`
+		Heading      float64 `json:"heading,omitempty"`
+		GPSValid     bool    `json:"gps_valid,omitempty"`
+		TrackerTime  string  `json:"tracker_time,omitempty"`
+		ReceivedAt   string  `json:"received_at,omitempty"`
+	}
+	out := make([]position, 0, len(positions))
+	for _, p := range positions {
+		name := p.Device.Name
+		if name == "" {
+			name = p.Device.PhoneNumber
+		}
+		item := position{ID: p.Device.ID, Name: name, Model: p.Device.Model, ConfigStatus: p.Device.ConfigStatus, ConfigDetail: p.Device.ConfigDetail, HasPosition: p.HasPosition}
+		if p.HasPosition {
+			item.Latitude, item.Longitude, item.SpeedKPH, item.Heading = p.Latitude, p.Longitude, p.SpeedKPH, p.Heading
+			item.GPSValid = p.GPSValid
+			item.TrackerTime = p.TrackerTime.UTC().Format(time.RFC3339)
+			item.ReceivedAt = p.ReceivedAt.UTC().Format(time.RFC3339)
+		}
+		out = append(out, item)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = json.NewEncoder(w).Encode(map[string]any{"status": d.ConfigStatus, "detail": d.ConfigDetail, "configured": d.ConfigStatus == "configured"})
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
@@ -403,7 +435,7 @@ func (s *Server) sameOrigin(r *http.Request) bool {
 }
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'unsafe-inline'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https://*.basemaps.cartocdn.com; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
@@ -412,8 +444,3 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 var _ = sql.ErrNoRows
-
-const pages = `{{define "style"}}<style>:root{font:16px/1.5 system-ui;color:#172426}body{margin:0;background:#102326}main{width:min(56rem,calc(100% - 2rem));margin:3rem auto;padding:2rem;box-sizing:border-box;border-radius:1rem;background:#f8f4e8}h1,h2{color:#0c6064}label{display:block;margin-top:1rem;font-weight:650}input,select{box-sizing:border-box;width:100%;padding:.7rem;margin-top:.3rem}button{margin-top:1rem;padding:.7rem 1rem;background:#0c7479;color:white;border:0;border-radius:.4rem}.error,.failed{color:#8b1710}.configured{color:#17622a}.device{padding:1rem;margin:1rem 0;background:white;border-radius:.6rem}.hint{color:#526466}nav{display:flex;justify-content:space-between}</style>{{end}}
-{{define "setup"}}<!doctype html><html lang="pl"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Herring — konfiguracja</title>{{template "style"}}<body><main><h1>Witaj w Herring</h1>{{if .Error}}<p class="error">{{.Error}}</p>{{end}}<form method="post">{{if .TokenRequired}}<label>Token instalacji<input name="setup_token" type="password" required></label>{{end}}<label>Nazwa<input name="display_name" value="{{.DisplayName}}" required></label><label>Email<input name="email" type="email" value="{{.Email}}" required></label><label>Hasło<input name="password" type="password" minlength="12" required></label><label>Powtórz hasło<input name="password_confirmation" type="password" minlength="12" required></label><button>Utwórz administratora</button></form></main></body></html>{{end}}
-{{define "login"}}<!doctype html><html lang="pl"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Herring — logowanie</title>{{template "style"}}<body><main><h1>Herring</h1>{{if .Error}}<p class="error">{{.Error}}</p>{{end}}<form method="post"><label>Email<input name="email" type="email" required></label><label>Hasło<input name="password" type="password" required></label><button>Zaloguj</button></form></main></body></html>{{end}}
-{{define "home"}}<!doctype html><html lang="pl"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Herring</title>{{template "style"}}<body><main><nav><strong>Herring</strong><form method="post" action="/logout"><button>Wyloguj</button></form></nav><h1>Trackery</h1>{{range .Devices}}<section class="device" data-device="{{.ID}}"><strong>{{if .Name}}{{.Name}}{{else}}{{.PhoneNumber}}{{end}}</strong> · {{.Model}}<p class="status {{.ConfigStatus}}">{{if eq .ConfigStatus "configured"}}✓ Skonfigurowany{{else if eq .ConfigStatus "failed"}}⚠ Konfiguracja nieudana{{else}}⏳ Konfigurowanie…{{end}} — {{.ConfigDetail}}</p></section>{{else}}<p class="hint">Nie dodano jeszcze trackera.</p>{{end}}<h2>Dodaj tracker</h2>{{if .Ready}}<form method="post" action="/devices"><label>Wariant<select name="model"><option value="st901-2g">ST-901 2G</option><option value="st901-4g">ST-901 4G</option></select></label><label>Numer SIM trackera<input name="phone" type="tel" placeholder="+48…" required></label><label>Nazwa (opcjonalnie)<input name="name"></label><button>Dodaj i skonfiguruj przez SMS</button></form>{{else}}<p class="error">Administrator serwera musi najpierw skonfigurować integrację Sendly.</p>{{end}}<script src="/status.js"></script></main></body></html>{{end}}`
