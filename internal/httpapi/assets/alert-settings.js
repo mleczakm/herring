@@ -164,6 +164,8 @@
       deviceForm.elements.exit.checked = !!data.exit;
       deviceForm.elements.humor.checked = !!data.humor;
       deviceForm.elements.speed_kph.value = data.speed_kph || 0;
+      deviceForm.elements.offline_minutes.value = data.offline_minutes || 0;
+      deviceForm.elements.sms_fallback.checked = !!data.sms_fallback;
       button.disabled = false;
     }).catch(function () { say('Nie udało się wczytać ustawień urządzenia. Odśwież stronę i spróbuj ponownie.', true); });
     deviceForm.addEventListener('submit', async function (event) {
@@ -173,9 +175,20 @@
         deviceForm.querySelector('.alert-place-choices').scrollIntoView({block: 'center'});
         return;
       }
+      var offlineMinutes = Number(deviceForm.elements.offline_minutes.value);
+      if (offlineMinutes !== 0 && (offlineMinutes < 10 || offlineMinutes > 10080)) {
+        say('Czas bez sygnału musi wynosić 0 albo od 10 minut do 7 dni (10080 minut).', true);
+        deviceForm.elements.offline_minutes.focus();
+        return;
+      }
+      if (deviceForm.elements.sms_fallback.checked && offlineMinutes === 0) {
+        say('Zapytanie SMS-em działa razem z powiadomieniem o braku sygnału. Ustaw liczbę minut.', true);
+        deviceForm.elements.offline_minutes.focus();
+        return;
+      }
       button.disabled = true;
       try {
-        await request(url, 'PUT', {entry: deviceForm.elements.entry.checked, exit: deviceForm.elements.exit.checked, humor: deviceForm.elements.humor.checked, place_ids: deviceForm.selectedPlaces || [], speed_kph: Number(deviceForm.elements.speed_kph.value)});
+        await request(url, 'PUT', {entry: deviceForm.elements.entry.checked, exit: deviceForm.elements.exit.checked, humor: deviceForm.elements.humor.checked, place_ids: deviceForm.selectedPlaces || [], speed_kph: Number(deviceForm.elements.speed_kph.value), offline_minutes: offlineMinutes, sms_fallback: deviceForm.elements.sms_fallback.checked});
         say('Ustawienia urządzenia zostały zapisane.');
       } catch (_) { say('Nie udało się zapisać ustawień urządzenia. Spróbuj ponownie.', true); }
       button.disabled = false;

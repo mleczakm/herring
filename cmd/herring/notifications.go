@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
+	"time"
 
+	"github.com/mleczakm/herring/internal/httpapi"
 	"github.com/mleczakm/herring/internal/protocol/sinotrack"
 	"github.com/mleczakm/herring/internal/push"
 	"github.com/mleczakm/herring/internal/storage/sqlite"
@@ -61,6 +64,71 @@ func (n *notifications) deliver(ctx context.Context) {
 			if err != nil && ctx.Err() == nil {
 				n.logger.Warn("could not deliver tracking alert", "error", err)
 			}
+		}
+	}
+}
+
+func (n *notifications) enqueue(event sqlite.AlertEvent) {
+	select {
+	case n.queue <- event:
+	default:
+		n.logger.Warn("notification queue full")
+	}
+}
+
+// contact records a GPRS frame and announces recovery after an outage.
+func (n *notifications) contact(ctx context.Context, trackerID string, now time.Time) {
+	events, err := n.store.TouchTracker(ctx, trackerID, now)
+	if err != nil {
+		n.logger.Warn("could not record tracker contact", "error", err)
+		return
+	}
+	for _, event := range events {
+		n.enqueue(event)
+	}
+}
+
+// locator sends the SMS position request; *httpapi.Server implements it.
+type locator interface {
+	RequestSMSLocation(context.Context, int64) error
+}
+
+// watchOffline reports devices that stopped sending positions. When a user
+// enabled the SMS fallback, it asks the tracker for its position by SMS once
+// per outage, which works without mobile data as long as GSM is available.
+func (n *notifications) watchOffline(ctx context.Context, sms locator) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		events, err := n.store.OfflineEvents(ctx, time.Now())
+		if err != nil {
+			if ctx.Err() == nil {
+				n.logger.Warn("could not check for offline trackers", "error", err)
+			}
+			continue
+		}
+		requested := map[int64]bool{}
+		for _, event := range events {
+			if event.SMSFallback {
+				sent, done := requested[event.DeviceID]
+				if !done {
+					err := sms.RequestSMSLocation(ctx, event.DeviceID)
+					// A request made moments ago still counts as asked.
+					sent = err == nil || errors.Is(err, httpapi.ErrLocateTooSoon)
+					if err != nil && !sent {
+						n.logger.Warn("could not request SMS position", "device_id", event.DeviceID, "error", err)
+					}
+					requested[event.DeviceID] = sent
+				}
+				event.SMSRequested = sent
+			}
+			n.logger.Info("tracker offline", "device_id", event.DeviceID, "silent_for", event.OfflineFor.Round(time.Minute).String())
+			n.enqueue(event)
 		}
 	}
 }

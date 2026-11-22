@@ -30,14 +30,14 @@ const webManifest = `{
 // Bump CACHE whenever a precached asset changes. Assets are cache-first and
 // served as immutable, so a changed file also needs a new ?v= in its URL.
 const serviceWorkerJS = `"use strict";
-var CACHE = "sledz-shell-v2";
+var CACHE = "sledz-shell-v3";
 var ASSETS = [
-  "/assets/herring.css?v=2",
+  "/assets/herring.css?v=3",
   "/assets/herring.svg?v=2",
   "/assets/leaflet.css",
   "/assets/leaflet.js",
-  "/assets/dashboard.js?v=3",
-  "/assets/privacy.js?v=1",
+  "/assets/dashboard.js?v=4",
+  "/assets/privacy.js?v=2",
   "/assets/settings.js?v=1",
   "/assets/space-grotesk-latin.woff2",
   "/assets/space-grotesk-latin-ext.woff2"
@@ -201,7 +201,8 @@ function syncOnce(key){
             key: p.device_id + "|" + p.tracker_time, device_id: p.device_id,
             tracker_time: p.tracker_time, tracker_ms: Date.parse(p.tracker_time),
             received_at: p.received_at, received_ms: Date.parse(p.received_at),
-            gps_valid: p.gps_valid, latitude: p.latitude, longitude: p.longitude, speed_kph: p.speed_kph, heading: p.heading
+            gps_valid: p.gps_valid, latitude: p.latitude, longitude: p.longitude, speed_kph: p.speed_kph, heading: p.heading,
+            source: p.source || "gprs"
           });
         });
         tx.objectStore("meta").put(data.browser_retention_days, "retention_days");
@@ -274,6 +275,7 @@ function devices(){
           item.has_position = true;
           item.latitude = p.latitude; item.longitude = p.longitude; item.speed_kph = p.speed_kph; item.heading = p.heading;
           item.gps_valid = p.gps_valid; item.tracker_time = p.tracker_time; item.received_at = p.received_at;
+          item.source = p.source || "gprs";
           return item;
         });
       }));

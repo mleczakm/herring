@@ -19,7 +19,7 @@ The project is at an early stage. The initial milestone covers:
 See [the implementation plan](docs/plan.md),
 [architecture notes](docs/architecture.md),
 [adding a tracker](docs/adding-a-tracker.md), and
-[privacy mode and data retention](docs/privacy.md). The [brand guide](docs/branding.md) covers the voice, palette and logo. See [browser notifications](docs/notifications.md) for delivery and optional Gemini settings. Production releases use the
+[privacy mode and data retention](docs/privacy.md), [offline alerts and positions by SMS](docs/offline-and-sms.md). The [brand guide](docs/branding.md) covers the voice, palette and logo. See [browser notifications](docs/notifications.md) for delivery and optional Gemini settings. Production releases use the
 [Mikrus deployment process](docs/deployment.md).
 
 ## Development
@@ -70,9 +70,10 @@ HERRING_TRACKER_PUBLIC_HOST=65.108.44.244
 
 Configure Sendly's incoming-message and delivery webhook as
 `https://śledź.mleczki.pl/webhooks/sendly/<HERRING_SENDLY_WEBHOOK_SECRET>`.
-Sendly does not authenticate or retry webhooks, so the secret URL must not be
-published. The tracker password defaults to `0000`; it can be overridden with
-`HERRING_TRACKER_PASSWORD`.
+Sendly does not authenticate webhooks, so the secret URL must not be
+published. It retries a webhook until it receives `200 OK`; Herring answers
+`200` and ignores repeated deliveries. The tracker password defaults to `0000`; it can be
+overridden with `HERRING_TRACKER_PASSWORD`.
 
 Build the production container with:
 

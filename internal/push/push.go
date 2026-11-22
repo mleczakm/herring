@@ -128,7 +128,7 @@ func (s *Service) Send(ctx context.Context, event sqlite.AlertEvent) error {
 	if err != nil {
 		return errors.New("push privacy check failed")
 	}
-	if settings.PrivacyMode {
+	if settings.PrivacyMode && event.RevealsLocation() {
 		return nil
 	}
 	body := localText(event)
@@ -147,7 +147,7 @@ func (s *Service) Send(ctx context.Context, event sqlite.AlertEvent) error {
 		if settingsErr != nil {
 			return errors.New("push privacy check failed")
 		}
-		if settings.PrivacyMode {
+		if settings.PrivacyMode && event.RevealsLocation() {
 			return nil
 		}
 		if ctx.Err() != nil {
@@ -187,6 +187,16 @@ func localText(e sqlite.AlertEvent) string {
 		return fmt.Sprintf("%s jest już poza miejscem „%s”.", name, e.PlaceName)
 	case "speed":
 		return fmt.Sprintf("%s jedzie %.0f km/h i przekracza Twój limit.", name, e.SpeedKPH)
+	case "offline":
+		text := fmt.Sprintf("%s nie odzywa się od %s. Możliwe przyczyny: brak zasięgu, zasilania albo środków na karcie SIM.", name, silence(e.OfflineFor))
+		if e.SMSRequested {
+			text += " Wysłałem SMS z prośbą o pozycję."
+		}
+		return text
+	case "online":
+		return fmt.Sprintf("%s znów jest w kontakcie.", name)
+	case "sms_position":
+		return fmt.Sprintf("Przyszła pozycja SMS-em od: %s. Sprawdź mapę.", name)
 	default:
 		return "Nowy alert lokalizatora."
 	}
@@ -200,6 +210,12 @@ func localHumor(kind string) string {
 		return "Szykuj się, ktoś już jest w drodze!"
 	case "speed":
 		return "Pośpiech poniża!"
+	case "offline":
+		return "Śledź zarzuca sieci!"
+	case "online":
+		return "Śledź znów na tropie!"
+	case "sms_position":
+		return "Gołąb pocztowy doleciał!"
 	}
 	return "Śledź czuwa!"
 }
@@ -252,4 +268,19 @@ func (s *Service) humor(ctx context.Context, kind string) string {
 		return ""
 	}
 	return text
+}
+
+// silence formats an outage length after "od", which takes the genitive in
+// Polish: "od 45 minut", "od 1 godziny", "od 5 godzin", "od 3 dni".
+func silence(d time.Duration) string {
+	switch {
+	case d < time.Hour:
+		return fmt.Sprintf("%d minut", int(d.Minutes()))
+	case d < 2*time.Hour:
+		return "1 godziny"
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%d godzin", int(d.Hours()))
+	default:
+		return fmt.Sprintf("%d dni", int(d.Hours()/24))
+	}
 }

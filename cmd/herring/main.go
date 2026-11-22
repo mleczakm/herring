@@ -107,6 +107,7 @@ func main() {
 			}
 			// Position history belongs in the retention-controlled store.
 			alerts.observe(ctx, location)
+			alerts.contact(ctx, location.DeviceID, receivedAt)
 			logger.Debug("tracker location received")
 			return nil
 		},
@@ -122,6 +123,7 @@ func main() {
 	}()
 	go func() { errorsChannel <- trackerServer.ListenAndServe(ctx) }()
 	go enforceRetention(ctx, store, logger)
+	go alerts.watchOffline(ctx, httpHandler)
 
 	select {
 	case <-ctx.Done():

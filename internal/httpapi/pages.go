@@ -10,7 +10,7 @@ var publicPages string
 // CDN at runtime, so the strict CSP in securityHeaders never needs to trust a
 // third party for script execution — only map tile images are cross-origin.
 const pages = `
-{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0e3332"><link rel="icon" href="/assets/herring.svg?v=2" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=2"><link rel="stylesheet" href="/assets/herring.css?v=2">{{end}}
+{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0e3332"><link rel="icon" href="/assets/herring.svg?v=2" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=2"><link rel="stylesheet" href="/assets/herring.css?v=3">{{end}}
 
 
 
@@ -77,14 +77,14 @@ const pages = `
     </section>
     <div class="toast glass" role="status" id="agent-toast">
       <span class="toast-avatar">{{template "brand-mark"}}</span>
-      <div><h4>Agent Śledź melduje</h4><p id="toast-message"></p></div>
+      <div><h4>Agent Śledź melduje</h4><p id="toast-message"></p><button class="btn btn-small" id="toast-action" type="button" hidden></button></div>
       <button class="btn-icon" id="toast-close" aria-label="Zamknij komunikat" type="button">{{template "icon-x"}}</button>
     </div>
   </main>
 </div>
 <script src="/assets/leaflet.js"></script>
-<script src="/assets/privacy.js?v=1"></script>
-<script src="/assets/dashboard.js?v=3"></script>
+<script src="/assets/privacy.js?v=2"></script>
+<script src="/assets/dashboard.js?v=4"></script>
 </body></html>{{end}}
 
 {{define "settings"}}<!doctype html><html lang="pl"><head><title>Ustawienia · Śledź</title>{{template "head"}}</head><body{{if .Privacy}} data-privacy="local"{{end}}>
@@ -118,6 +118,15 @@ const pages = `
         <p class="notice" id="privacy-message" role="status" hidden></p>
         <noscript><p class="notice alert">Tryb prywatny wymaga włączonego JavaScriptu.</p></noscript>
       </section>
+      <section class="card" id="sms" aria-labelledby="sms-title">
+        <h2 id="sms-title">SMS-y i stan konta</h2>
+        <dl class="facts">
+          <div><dt>SMS-y wysłane do lokalizatorów w ostatnich 30 dniach</dt><dd>{{.SMSLast30Days}}</dd></div>
+          <div><dt>Wysyłanie SMS-ów</dt><dd>{{if .SMSReady}}<span class="pill ok">Gotowe</span>{{else}}<span class="pill offline">Nieskonfigurowane</span>{{end}}</dd></div>
+        </dl>
+        <p class="hint">Każde zapytanie SMS-em o pozycję to jeden SMS ze Śledzia i jedna odpowiedź wysłana z karty SIM lokalizatora, płatna u jej operatora.</p>
+        <p class="hint">Śledź nie może sprawdzić stanu konta: lokalizator nie ma do tego polecenia, a usługa wysyłająca SMS-y nie udostępnia salda. Sprawdzaj je u operatora karty SIM i w panelu usługi SMS. Gdy lokalizator nagle milknie, jedną z przyczyn bywa brak środków na karcie — włącz powiadomienie o braku sygnału w „Miejsca i powiadomienia”.</p>
+      </section>
       <section class="card" id="retention" aria-labelledby="retention-title">
         <h2 id="retention-title">Przechowywanie danych</h2>
         <form method="post" action="/ustawienia">
@@ -131,7 +140,7 @@ const pages = `
     </div>
   </main>
 </div>
-<script src="/assets/privacy.js?v=1"></script>
+<script src="/assets/privacy.js?v=2"></script>
 <script src="/assets/settings.js?v=1"></script>
 </body></html>{{end}}
 `

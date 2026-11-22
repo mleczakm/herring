@@ -56,6 +56,11 @@ type Store interface {
 	CountPositions(context.Context) (int64, error)
 	OldestPositions(context.Context, int) ([]sqlite.StoredPosition, error)
 	DeletePositions(context.Context, []sqlite.PositionKey) (int64, error)
+	ManagedDevice(context.Context, int64) (sqlite.ManagedDevice, error)
+	LastSMSCommand(context.Context, int64, string) (time.Time, bool, error)
+	SaveSMSPosition(context.Context, int64, sqlite.SMSPosition, time.Time) (bool, error)
+	SMSPositionEvents(context.Context, int64) ([]sqlite.AlertEvent, error)
+	CountSMSCommandsSince(context.Context, time.Time) (int64, error)
 }
 type Config struct {
 	Push                      *push.Service
@@ -103,6 +108,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("POST /devices", s.createDevice)
 	mux.HandleFunc("GET /api/positions", s.positions)
+	mux.HandleFunc("POST /api/devices/{id}/locate", s.locate)
 	mux.HandleFunc("GET /ustawienia", s.showSettings)
 	mux.HandleFunc("POST /ustawienia", s.saveSettings)
 	mux.HandleFunc("POST /api/privacy/enable", s.enablePrivacy)
@@ -310,6 +316,7 @@ func (s *Server) positions(w http.ResponseWriter, r *http.Request) {
 		GPSValid     bool    `json:"gps_valid,omitempty"`
 		TrackerTime  string  `json:"tracker_time,omitempty"`
 		ReceivedAt   string  `json:"received_at,omitempty"`
+		Source       string  `json:"source,omitempty"`
 	}
 	out := make([]position, 0, len(positions))
 	for _, p := range positions {
@@ -326,6 +333,7 @@ func (s *Server) positions(w http.ResponseWriter, r *http.Request) {
 			item.GPSValid = p.GPSValid
 			item.TrackerTime = p.TrackerTime.UTC().Format(time.RFC3339)
 			item.ReceivedAt = p.ReceivedAt.UTC().Format(time.RFC3339)
+			item.Source = p.Source
 		}
 		out = append(out, item)
 	}
@@ -373,6 +381,9 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "unknown sender", 404)
 			return
 		}
+		if s.handleLocationReply(r.Context(), d, event.Body) {
+			break
+		}
 		if st901.ConfigurationMatches(event.Body, s.config.Tracker) {
 			_ = s.store.SetConfigurationStatus(r.Context(), d.ID, "configured", "Lokalizator potwierdził ustawienia połączenia.")
 		} else if strings.Contains(strings.ToUpper(event.Body), "RCONF") || strings.Contains(strings.ToUpper(event.Body), "MODE:") {
@@ -382,7 +393,9 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unsupported event", 400)
 		return
 	}
-	w.WriteHeader(204)
+	// The SMS gateway retries a webhook until it gets 200 OK, so answer with
+	// exactly that; repeated deliveries are harmless anyway.
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) redirectSetup(w http.ResponseWriter, r *http.Request) bool {

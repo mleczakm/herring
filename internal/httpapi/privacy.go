@@ -47,6 +47,11 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, user sql
 		s.internalError(w, r, err)
 		return
 	}
+	smsCount, err := s.store.CountSMSCommandsSince(r.Context(), time.Now().AddDate(0, 0, -30))
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
 	var boundAt string
 	if !settings.PrivacyBoundAt.IsZero() {
 		boundAt = settings.PrivacyBoundAt.UTC().Format(time.RFC3339)
@@ -54,7 +59,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, user sql
 	s.render(w, "settings", status, map[string]any{
 		"User": user, "Active": "settings", "Privacy": settings.PrivacyMode, "Settings": settings,
 		"BoundAt": boundAt, "ServerPositions": count, "Saved": saved, "Error": message,
-		"MaxRetentionDays": sqlite.MaxRetentionDays,
+		"MaxRetentionDays": sqlite.MaxRetentionDays, "SMSLast30Days": smsCount, "SMSReady": s.sender != nil,
 	})
 }
 
@@ -153,6 +158,7 @@ type privacyPosition struct {
 	Longitude   float64 `json:"longitude"`
 	SpeedKPH    float64 `json:"speed_kph"`
 	Heading     float64 `json:"heading"`
+	Source      string  `json:"source"`
 }
 
 // privacySync hands the bound browser the oldest positions still on the
@@ -192,7 +198,7 @@ func (s *Server) privacySync(w http.ResponseWriter, r *http.Request) {
 	for _, p := range positions {
 		response.Positions = append(response.Positions, privacyPosition{
 			ID: p.ID, DeviceID: p.DeviceID, TrackerTime: p.TrackerTime.UTC().Format(time.RFC3339Nano), ReceivedAt: p.ReceivedAt.UTC().Format(time.RFC3339Nano),
-			GPSValid: p.GPSValid, Latitude: p.Latitude, Longitude: p.Longitude, SpeedKPH: p.SpeedKPH, Heading: p.Heading,
+			GPSValid: p.GPSValid, Latitude: p.Latitude, Longitude: p.Longitude, SpeedKPH: p.SpeedKPH, Heading: p.Heading, Source: p.Source,
 		})
 	}
 	w.Header().Set("Content-Type", "application/json")

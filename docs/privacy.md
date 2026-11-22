@@ -34,7 +34,8 @@ transferred to the device and deleted from the server.
 | Server copy of a position | Until server retention removes it | Until the bound browser acknowledges it, or server retention removes it first |
 | Map in other browsers and sessions | Positions shown | Tracker list only, no positions |
 | Map in the bound browser | From the server | From local storage, also offline |
-| Alerts and place suggestions | Active | Paused; alert state resets when the mode changes, so movement during privacy mode triggers no late alerts |
+| Place and speed alerts, place suggestions | Active | Paused; alert state resets when the mode changes, so movement during privacy mode triggers no late alerts |
+| Offline alerts and positions by SMS | Active | Active; they carry no location, but an SMS position passes through the mobile operator and the SMS gateway ([details](offline-and-sms.md)) |
 
 Server logs never contain coordinates, in either mode.
 

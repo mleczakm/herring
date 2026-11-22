@@ -27,8 +27,9 @@ function classify(d){
   }
   var ageMinutes = (Date.now() - new Date(d.received_at).getTime())/60000;
   if (!d.gps_valid) return {state:"alert", color:COLORS.alert, label:"Brak fixu GPS"};
+  if (d.source === "sms") return {state:"info", color:COLORS.info, label:"Pozycja z SMS-a • " + relTime(d.received_at)};
   if (ageMinutes > 15) return {state:"offline", color:COLORS.offline, label:"Brak sygnału od " + relTime(d.received_at)};
-  if (d.speed_kph > 1) return {state:"ok", color:COLORS.ok, label: Math.round(d.speed_kph) + " km/h"};
+  if (d.speed_kph > 1) return {state:"ok", color:COLORS.ok, label: Math.round(d.speed_kph || 0) + " km/h"};
   return {state:"info", color:COLORS.info, label:"Postój • " + relTime(d.received_at)};
 }
 
@@ -66,9 +67,18 @@ var toast = document.getElementById("agent-toast");
 var toastMessage = document.getElementById("toast-message");
 var toastClose = document.getElementById("toast-close");
 var toastTimer = null;
-function showToast(message){
+var toastAction = document.getElementById("toast-action");
+var toastActionHandler = null;
+if (toastAction) toastAction.addEventListener("click", function(){ if (toastActionHandler) toastActionHandler(); });
+// showToast shows a message with an optional {label, run} action button.
+function showToast(message, action){
   if (!toast) return;
   toastMessage.textContent = message;
+  if (toastAction) {
+    toastAction.hidden = !action;
+    toastAction.textContent = action ? action.label : "";
+    toastActionHandler = action ? action.run : null;
+  }
   toast.classList.add("show");
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(function(){ toast.classList.remove("show"); }, 6000);
@@ -112,9 +122,10 @@ if (mapEl && window.L) {
   function popupHTML(d, cls){
     return '<div class="popup"><div class="popup-head" style="background:' + cls.color + '1a;border-bottom-color:' + cls.color + '40"><strong>' + esc(d.name) + '</strong></div>' +
       '<div class="popup-body">' +
-      '<div class="popup-row"><span>Prędkość</span><strong>' + (d.has_position ? Math.round(d.speed_kph) + " km/h" : "—") + '</strong></div>' +
+      '<div class="popup-row"><span>Prędkość</span><strong>' + (d.has_position ? Math.round(d.speed_kph || 0) + " km/h" : "—") + '</strong></div>' +
       '<div class="popup-row"><span>Ostatnia aktualizacja</span><span>' + (d.has_position ? relTime(d.received_at) : "—") + '</span></div>' +
       '<div class="popup-row"><span>Status</span><span class="pill ' + cls.state + '">' + esc(cls.label) + '</span></div>' +
+      '<button class="btn btn-small popup-locate" type="button" data-locate="' + esc(String(d.id)) + '">Zapytaj SMS-em o pozycję</button>' +
       '</div></div>';
   }
 
@@ -131,9 +142,26 @@ if (mapEl && window.L) {
     }
   }
 
+  // requestSMSLocation asks the tracker to answer with its position by SMS,
+  // which works when it has no mobile data but still has GSM coverage.
+  function requestSMSLocation(id){
+    fetch("/api/devices/" + encodeURIComponent(id) + "/locate", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}", credentials: "same-origin"})
+      .then(function(r){
+        if (r.status === 202) showToast("Wysłałem SMS do lokalizatora. Odpowiedź z pozycją zwykle przychodzi w ciągu minuty.");
+        else if (r.status === 429) showToast("Zapytanie poszło przed chwilą. Poczekaj na odpowiedź, zanim wyślesz kolejne.");
+        else if (r.status === 503) showToast("Wysyłanie SMS-ów nie jest skonfigurowane na serwerze.");
+        else showToast("Nie udało się wysłać SMS-a. Spróbuj ponownie za chwilę.");
+      })
+      .catch(function(){ showToast("Brak połączenia z serwerem."); });
+  }
+  mapEl.addEventListener("click", function(e){
+    var button = e.target.closest && e.target.closest("[data-locate]");
+    if (button) requestSMSLocation(button.getAttribute("data-locate"));
+  });
+
   function focusDevice(d){
     if (!d.has_position) {
-      showToast("Brak pozycji. Sprawdź zasilanie lokalizatora lub poczekaj na pierwszy sygnał.");
+      showToast("Brak pozycji. Lokalizator może nie mieć internetu albo jeszcze się nie odezwał.", {label: "Zapytaj SMS-em", run: function(){ requestSMSLocation(d.id); }});
       return;
     }
     map.flyTo([d.latitude, d.longitude], 15, {duration: 1.3});

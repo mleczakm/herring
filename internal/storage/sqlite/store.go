@@ -282,6 +282,8 @@ type DevicePosition struct {
 	Latitude, Longitude, SpeedKPH, Heading float64
 	GPSValid                               bool
 	TrackerTime, ReceivedAt                time.Time
+	// Source is "gprs" for tracker frames and "sms" for SMS replies.
+	Source string
 }
 
 // LatestPositions returns every managed device paired with its most recent
@@ -290,7 +292,7 @@ type DevicePosition struct {
 func (s *Store) LatestPositions(ctx context.Context) ([]DevicePosition, error) {
 	rows, err := s.database.QueryContext(ctx, `
         SELECT md.id, md.name, md.model, md.phone_number, COALESCE(md.tracker_id,''), md.config_status, md.config_detail, md.config_started_at, md.config_verified_at,
-               p.latitude, p.longitude, p.speed_kph, p.heading, p.gps_valid, p.tracker_time, p.received_at
+               p.latitude, p.longitude, p.speed_kph, p.heading, p.gps_valid, p.tracker_time, p.received_at, p.source
         FROM managed_devices md
         LEFT JOIN positions p ON p.id = (
             SELECT p2.id FROM positions p2 WHERE p2.device_id = md.tracker_id ORDER BY p2.tracker_time DESC LIMIT 1
@@ -309,9 +311,10 @@ func (s *Store) LatestPositions(ctx context.Context) ([]DevicePosition, error) {
 			lat, lng, speed, head sql.NullFloat64
 			gpsValid              sql.NullBool
 			trackerTime, received sql.NullString
+			source                sql.NullString
 		)
 		if err := rows.Scan(&dp.Device.ID, &dp.Device.Name, &dp.Device.Model, &dp.Device.PhoneNumber, &dp.Device.TrackerID, &dp.Device.ConfigStatus, &dp.Device.ConfigDetail, &started, &verified,
-			&lat, &lng, &speed, &head, &gpsValid, &trackerTime, &received); err != nil {
+			&lat, &lng, &speed, &head, &gpsValid, &trackerTime, &received, &source); err != nil {
 			return nil, fmt.Errorf("scan latest position: %w", err)
 		}
 		dp.Device.ConfigStartedAt, _ = time.Parse(time.RFC3339Nano, started)
@@ -325,6 +328,7 @@ func (s *Store) LatestPositions(ctx context.Context) ([]DevicePosition, error) {
 			dp.GPSValid = gpsValid.Bool
 			dp.TrackerTime, _ = time.Parse(time.RFC3339Nano, trackerTime.String)
 			dp.ReceivedAt, _ = time.Parse(time.RFC3339Nano, received.String)
+			dp.Source = source.String
 		}
 		out = append(out, dp)
 	}
@@ -403,7 +407,10 @@ func (s *Store) initialize(ctx context.Context) error {
 			return fmt.Errorf("initialize SQLite: %w", err)
 		}
 	}
-	return s.InitPush(ctx)
+	if err := s.InitPush(ctx); err != nil {
+		return err
+	}
+	return s.InitContact(ctx)
 }
 
 func formatTime(value time.Time) string {
@@ -500,6 +507,7 @@ type StoredPosition struct {
 	TrackerTime, ReceivedAt                time.Time
 	GPSValid                               bool
 	Latitude, Longitude, SpeedKPH, Heading float64
+	Source                                 string
 }
 
 // PositionKey identifies a stored position precisely. SQLite may reuse a
@@ -514,7 +522,7 @@ type PositionKey struct {
 // OldestPositions returns up to limit stored positions, oldest first.
 func (s *Store) OldestPositions(ctx context.Context, limit int) ([]StoredPosition, error) {
 	rows, err := s.database.QueryContext(ctx, `
-        SELECT id, device_id, tracker_time, received_at, gps_valid, latitude, longitude, speed_kph, heading
+        SELECT id, device_id, tracker_time, received_at, gps_valid, latitude, longitude, speed_kph, heading, source
         FROM positions ORDER BY id LIMIT ?`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query stored positions: %w", err)
@@ -526,7 +534,7 @@ func (s *Store) OldestPositions(ctx context.Context, limit int) ([]StoredPositio
 			p                     StoredPosition
 			trackerTime, received string
 		)
-		if err := rows.Scan(&p.ID, &p.DeviceID, &trackerTime, &received, &p.GPSValid, &p.Latitude, &p.Longitude, &p.SpeedKPH, &p.Heading); err != nil {
+		if err := rows.Scan(&p.ID, &p.DeviceID, &trackerTime, &received, &p.GPSValid, &p.Latitude, &p.Longitude, &p.SpeedKPH, &p.Heading, &p.Source); err != nil {
 			return nil, fmt.Errorf("scan stored position: %w", err)
 		}
 		p.TrackerTime, _ = time.Parse(time.RFC3339Nano, trackerTime)

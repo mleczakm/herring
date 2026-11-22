@@ -193,6 +193,11 @@ a:focus-visible,button:focus-visible{outline:3px solid var(--signal);outline-off
   .mast .nav-button{padding:.5rem .65rem;font-size:.85rem}
 }
 
+/* SMS position request */
+.btn.btn-small{padding:.45rem .8rem;font-size:.82rem;border-radius:.45rem}
+.toast .btn-small{margin-top:.6rem}
+.popup-locate{width:100%;margin-top:.5rem}
+
 /* Settings */
 [hidden]{display:none!important}
 .content.page{display:block;overflow-y:auto;background:var(--bg)}

@@ -90,6 +90,10 @@ type AlertSettings struct {
 	SpeedKPH float64 `json:"speed_kph"`
 	Humor    bool    `json:"humor"`
 	PlaceIDs []int64 `json:"place_ids"`
+	// OfflineMinutes reports silence longer than this; 0 turns it off.
+	OfflineMinutes int `json:"offline_minutes"`
+	// SMSFallback asks the tracker for its position by SMS once per outage.
+	SMSFallback bool `json:"sms_fallback"`
 }
 type PlaceSuggestion struct {
 	Latitude  float64 `json:"latitude"`
@@ -98,11 +102,25 @@ type PlaceSuggestion struct {
 }
 type AlertEvent struct {
 	UserID     int64
+	DeviceID   int64
 	DeviceName string
-	Kind       string
-	PlaceName  string
-	SpeedKPH   float64
-	Humor      bool
+	// Kind is entry, exit, speed (they reveal location) or offline, online,
+	// sms_position (they do not).
+	Kind      string
+	PlaceName string
+	SpeedKPH  float64
+	Humor     bool
+	// OfflineFor and SMSFallback describe offline events; SMSRequested is set
+	// once the fallback SMS has actually been sent.
+	OfflineFor   time.Duration
+	SMSFallback  bool
+	SMSRequested bool
+}
+
+// RevealsLocation reports whether the event says where the device is. Only
+// such events are held back in privacy mode.
+func (e AlertEvent) RevealsLocation() bool {
+	return e.Kind == "entry" || e.Kind == "exit" || e.Kind == "speed"
 }
 
 func (s *Store) Places(ctx context.Context, userID int64) ([]Place, error) {
@@ -153,7 +171,7 @@ func (s *Store) DeviceAlerts(ctx context.Context, userID, deviceID int64) (Alert
 	if !exists {
 		return a, sql.ErrNoRows
 	}
-	err := s.database.QueryRowContext(ctx, `SELECT entry,exit,speed_kph,humor FROM alert_settings WHERE user_id=? AND device_id=?`, userID, deviceID).Scan(&a.Entry, &a.Exit, &a.SpeedKPH, &a.Humor)
+	err := s.database.QueryRowContext(ctx, `SELECT entry,exit,speed_kph,humor,offline_minutes,sms_fallback FROM alert_settings WHERE user_id=? AND device_id=?`, userID, deviceID).Scan(&a.Entry, &a.Exit, &a.SpeedKPH, &a.Humor, &a.OfflineMinutes, &a.SMSFallback)
 	if errors.Is(err, sql.ErrNoRows) {
 		return a, nil
 	}
@@ -179,12 +197,15 @@ func (s *Store) SaveDeviceAlerts(ctx context.Context, userID, deviceID int64, a 
 	if math.IsNaN(a.SpeedKPH) || a.SpeedKPH < 0 || a.SpeedKPH > 500 {
 		return errors.New("invalid speed")
 	}
+	if a.OfflineMinutes != 0 && (a.OfflineMinutes < MinOfflineMinutes || a.OfflineMinutes > MaxOfflineMinutes) {
+		return errors.New("invalid offline threshold")
+	}
 	tx, err := s.database.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	r, err := tx.ExecContext(ctx, `INSERT INTO alert_settings(user_id,device_id,entry,exit,speed_kph,humor) SELECT ?,id,?,?,?,? FROM managed_devices WHERE id=? ON CONFLICT(user_id,device_id) DO UPDATE SET entry=excluded.entry,exit=excluded.exit,speed_kph=excluded.speed_kph,humor=excluded.humor`, userID, a.Entry, a.Exit, a.SpeedKPH, a.Humor, deviceID)
+	r, err := tx.ExecContext(ctx, `INSERT INTO alert_settings(user_id,device_id,entry,exit,speed_kph,humor,offline_minutes,sms_fallback) SELECT ?,id,?,?,?,?,?,? FROM managed_devices WHERE id=? ON CONFLICT(user_id,device_id) DO UPDATE SET entry=excluded.entry,exit=excluded.exit,speed_kph=excluded.speed_kph,humor=excluded.humor,offline_minutes=excluded.offline_minutes,sms_fallback=excluded.sms_fallback`, userID, a.Entry, a.Exit, a.SpeedKPH, a.Humor, a.OfflineMinutes, a.SMSFallback, deviceID)
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,5 @@
 {{define "alert-settings"}}
-<!doctype html><html lang="pl"><head>{{template "head"}}<title>Miejsca i powiadomienia · Śledź</title><link rel="stylesheet" href="/assets/leaflet.css"><link rel="stylesheet" href="/assets/alert-settings.css"></head><body><header class="alert-header"><a class="alert-brand" href="/">{{template "wordmark"}}</a><a href="/">Wróć do mapy</a></header><main class="alert-main">
+<!doctype html><html lang="pl"><head>{{template "head"}}<title>Miejsca i powiadomienia · Śledź</title><link rel="stylesheet" href="/assets/leaflet.css"><link rel="stylesheet" href="/assets/alert-settings.css?v=2"></head><body><header class="alert-header"><a class="alert-brand" href="/">{{template "wordmark"}}</a><a href="/">Wróć do mapy</a></header><main class="alert-main">
 <section class="alert-settings" id="alert-settings" data-private="{{if .Privacy}}true{{else}}false{{end}}">
   <h1>Miejsca i powiadomienia</h1>
   <p>Wskaż na mapie dom lub inne ważne miejsce. Potem wybierz, kiedy Śledź ma dać Ci znać.</p>
@@ -34,6 +34,12 @@
       <label class="alert-check"><input type="checkbox" name="exit"> Wyjazd z miejsca</label>
       <label class="alert-check"><input type="checkbox" name="humor"> Dodaj żart do wiadomości</label>
       <label>Prędkość powyżej (km/h)<input type="number" name="speed_kph" min="0" max="500" step="1" value="0" required></label>
+      <fieldset class="alert-offline"><legend>Brak sygnału</legend>
+        <label>Powiadom, gdy lokalizator milczy dłużej niż (minuty)<input type="number" name="offline_minutes" min="0" max="10080" step="1" value="0" required></label>
+        <p class="alert-hint">Wpisz 0, aby wyłączyć. Na postoju lokalizator odzywa się co kilka minut, więc ustaw co najmniej 30 minut, żeby uniknąć fałszywych alarmów.</p>
+        <label class="alert-check"><input type="checkbox" name="sms_fallback"> Gdy milczy, zapytaj go SMS-em o pozycję</label>
+        <p class="alert-hint">Działa bez internetu w lokalizatorze, jeśli ma zasięg sieci komórkowej. Kosztuje jeden SMS ze Śledzia i jedną odpowiedź z karty SIM lokalizatora. Pozycja w SMS-ie przechodzi przez operatora komórkowego, także w trybie prywatnym.</p>
+      </fieldset>
       <button class="btn secondary" type="submit" disabled>Zapisz ustawienia</button>
     </form>{{else}}<p>Dodaj urządzenie, aby ustawić powiadomienia.</p>{{end}}
   </div>
@@ -45,5 +51,5 @@
     <button id="push-disable" class="btn secondary" type="button" hidden>Wyłącz powiadomienia</button>
   </div>
 </section>
-</main><script src="/assets/leaflet.js" defer></script><script src="/assets/alert-settings.js" defer></script></body></html>
+</main><script src="/assets/leaflet.js" defer></script><script src="/assets/alert-settings.js?v=2" defer></script></body></html>
 {{end}}
