@@ -77,7 +77,13 @@ func main() {
 		logger.Error("invalid stopped interval")
 		os.Exit(1)
 	}
+	alerts, err := startNotifications(ctx, store, logger)
+	if err != nil {
+		logger.Error("could not start browser notifications", "error", err)
+		os.Exit(1)
+	}
 	httpHandler := httpapi.New(store, smsSender, httpapi.Config{
+		Push:       alerts.service,
 		SetupToken: setupToken, WebhookSecret: os.Getenv("HERRING_SENDLY_WEBHOOK_SECRET"), PublicOrigin: os.Getenv("HERRING_PUBLIC_ORIGIN"), SecureCookies: os.Getenv("HERRING_ENV") == "production",
 		Tracker: st901.Profile{Password: environment("HERRING_TRACKER_PASSWORD", "0000"), ControlNumber: os.Getenv("HERRING_SENDLY_FROM"), APN: os.Getenv("HERRING_TRACKER_APN"), ServerHost: os.Getenv("HERRING_TRACKER_PUBLIC_HOST"), ServerPort: trackerPort, MovingInterval: movingInterval, StoppedInterval: stoppedInterval},
 	}, logger)
@@ -99,14 +105,9 @@ func main() {
 			if err := store.SaveLocation(ctx, receivedAt, location); err != nil {
 				return err
 			}
-			// Never log raw frames because future variants can contain sensitive data.
-			logger.Info("tracker location received",
-				"device_id", location.DeviceID,
-				"tracker_time", location.TrackerTime,
-				"gps_valid", location.GPSValid,
-				"latitude", location.Latitude,
-				"longitude", location.Longitude,
-			)
+			// Position history belongs in the retention-controlled store.
+			alerts.observe(ctx, location)
+			logger.Debug("tracker location received")
 			return nil
 		},
 	}
@@ -120,6 +121,7 @@ func main() {
 		}
 	}()
 	go func() { errorsChannel <- trackerServer.ListenAndServe(ctx) }()
+	go enforceRetention(ctx, store, logger)
 
 	select {
 	case <-ctx.Done():
@@ -135,6 +137,27 @@ func main() {
 	defer cancel()
 	if err := httpServer.Shutdown(shutdownContext); err != nil {
 		logger.Error("HTTP shutdown failed", "error", err)
+	}
+}
+
+// enforceRetention deletes positions older than the configured server
+// retention at startup and then hourly. Saving the settings also applies it.
+func enforceRetention(ctx context.Context, store *sqlite.Store, logger *slog.Logger) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		if deleted, err := store.ApplyServerRetention(ctx, time.Now()); err != nil {
+			if ctx.Err() == nil {
+				logger.Error("could not apply retention policy", "error", err)
+			}
+		} else if deleted > 0 {
+			logger.Info("retention policy deleted positions", "count", deleted)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
 	}
 }
 

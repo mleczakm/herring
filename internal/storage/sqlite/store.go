@@ -75,6 +75,23 @@ CREATE TABLE IF NOT EXISTS positions (
 
 CREATE INDEX IF NOT EXISTS positions_device_time_idx
     ON positions (device_id, tracker_time DESC);
+
+CREATE INDEX IF NOT EXISTS positions_received_idx
+    ON positions (received_at);
+
+-- Installation-wide settings. Herring has a single administrator, so one row
+-- holds both the privacy binding and the retention policy.
+CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    privacy_mode INTEGER NOT NULL DEFAULT 0 CHECK (privacy_mode IN (0, 1)),
+    privacy_client_hash TEXT NOT NULL DEFAULT '',
+    privacy_client_label TEXT NOT NULL DEFAULT '',
+    privacy_bound_at TEXT NOT NULL DEFAULT '',
+    server_retention_days INTEGER NOT NULL DEFAULT 0 CHECK (server_retention_days BETWEEN 0 AND 3650),
+    browser_retention_days INTEGER NOT NULL DEFAULT 0 CHECK (browser_retention_days BETWEEN 0 AND 3650)
+) STRICT;
+
+INSERT OR IGNORE INTO settings (id) VALUES (1);
 `
 
 type User struct {
@@ -380,14 +397,191 @@ func (s *Store) initialize(ctx context.Context) error {
 		"PRAGMA synchronous = NORMAL",
 		"PRAGMA busy_timeout = 5000",
 		schema,
+		alertsSchema,
 	} {
 		if _, err := s.database.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("initialize SQLite: %w", err)
 		}
 	}
-	return nil
+	return s.InitPush(ctx)
 }
 
 func formatTime(value time.Time) string {
 	return value.UTC().Format(time.RFC3339Nano)
+}
+
+// MaxRetentionDays bounds both retention settings (about ten years).
+const MaxRetentionDays = 3650
+
+// Settings is the installation-wide privacy and retention configuration.
+// A retention of 0 days keeps data indefinitely.
+type Settings struct {
+	PrivacyMode          bool
+	PrivacyClientHash    string
+	PrivacyClientLabel   string
+	PrivacyBoundAt       time.Time
+	ServerRetentionDays  int
+	BrowserRetentionDays int
+}
+
+func (s *Store) Settings(ctx context.Context) (Settings, error) {
+	var (
+		settings Settings
+		boundAt  string
+	)
+	err := s.database.QueryRowContext(ctx, `
+        SELECT privacy_mode, privacy_client_hash, privacy_client_label, privacy_bound_at,
+               server_retention_days, browser_retention_days
+        FROM settings WHERE id = 1`).Scan(&settings.PrivacyMode, &settings.PrivacyClientHash, &settings.PrivacyClientLabel,
+		&boundAt, &settings.ServerRetentionDays, &settings.BrowserRetentionDays)
+	if err != nil {
+		return Settings{}, fmt.Errorf("read settings: %w", err)
+	}
+	if boundAt != "" {
+		settings.PrivacyBoundAt, _ = time.Parse(time.RFC3339Nano, boundAt)
+	}
+	return settings, nil
+}
+
+// SaveRetention stores how many days positions are kept on the server and in
+// the privacy-mode browser.
+func (s *Store) SaveRetention(ctx context.Context, serverDays, browserDays int) error {
+	if serverDays < 0 || serverDays > MaxRetentionDays || browserDays < 0 || browserDays > MaxRetentionDays {
+		return fmt.Errorf("retention must be between 0 and %d days", MaxRetentionDays)
+	}
+	_, err := s.database.ExecContext(ctx, `UPDATE settings SET server_retention_days = ?, browser_retention_days = ? WHERE id = 1`, serverDays, browserDays)
+	if err != nil {
+		return fmt.Errorf("save retention: %w", err)
+	}
+	return nil
+}
+
+// EnablePrivacy binds privacy mode to one browser, identified by the hash of a
+// secret only that browser holds. Binding a new browser replaces the old one.
+func (s *Store) EnablePrivacy(ctx context.Context, clientHash, label string, now time.Time) error {
+	if clientHash == "" {
+		return fmt.Errorf("privacy client hash must not be empty")
+	}
+	_, err := s.database.ExecContext(ctx, `
+        UPDATE settings SET privacy_mode = 1, privacy_client_hash = ?, privacy_client_label = ?, privacy_bound_at = ?
+        WHERE id = 1`, clientHash, label, formatTime(now))
+	if err != nil {
+		return fmt.Errorf("enable privacy mode: %w", err)
+	}
+	return nil
+}
+
+// DisablePrivacy turns privacy mode off. Positions already transferred to the
+// bound browser stay there; the server starts keeping new positions again.
+func (s *Store) DisablePrivacy(ctx context.Context) error {
+	_, err := s.database.ExecContext(ctx, `
+        UPDATE settings SET privacy_mode = 0, privacy_client_hash = '', privacy_client_label = '', privacy_bound_at = ''
+        WHERE id = 1`)
+	if err != nil {
+		return fmt.Errorf("disable privacy mode: %w", err)
+	}
+	return nil
+}
+
+// PurgePositionsReceivedBefore deletes positions the server received before
+// cutoff and reports how many were removed.
+func (s *Store) PurgePositionsReceivedBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	result, err := s.database.ExecContext(ctx, `DELETE FROM positions WHERE received_at < ?`, formatTime(cutoff))
+	if err != nil {
+		return 0, fmt.Errorf("purge positions: %w", err)
+	}
+	return result.RowsAffected()
+}
+
+// StoredPosition is a position row as handed to the privacy-mode browser.
+type StoredPosition struct {
+	ID                                     int64
+	DeviceID                               string
+	TrackerTime, ReceivedAt                time.Time
+	GPSValid                               bool
+	Latitude, Longitude, SpeedKPH, Heading float64
+}
+
+// PositionKey identifies a stored position precisely. SQLite may reuse a
+// rowid after the newest rows are deleted, so the ID alone is not enough to
+// acknowledge a transfer safely.
+type PositionKey struct {
+	ID          int64
+	DeviceID    string
+	TrackerTime time.Time
+}
+
+// OldestPositions returns up to limit stored positions, oldest first.
+func (s *Store) OldestPositions(ctx context.Context, limit int) ([]StoredPosition, error) {
+	rows, err := s.database.QueryContext(ctx, `
+        SELECT id, device_id, tracker_time, received_at, gps_valid, latitude, longitude, speed_kph, heading
+        FROM positions ORDER BY id LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query stored positions: %w", err)
+	}
+	defer rows.Close()
+	out := []StoredPosition{}
+	for rows.Next() {
+		var (
+			p                     StoredPosition
+			trackerTime, received string
+		)
+		if err := rows.Scan(&p.ID, &p.DeviceID, &trackerTime, &received, &p.GPSValid, &p.Latitude, &p.Longitude, &p.SpeedKPH, &p.Heading); err != nil {
+			return nil, fmt.Errorf("scan stored position: %w", err)
+		}
+		p.TrackerTime, _ = time.Parse(time.RFC3339Nano, trackerTime)
+		p.ReceivedAt, _ = time.Parse(time.RFC3339Nano, received)
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// DeletePositions removes exactly the given positions in one transaction and
+// reports how many matched.
+func (s *Store) DeletePositions(ctx context.Context, keys []PositionKey) (int64, error) {
+	tx, err := s.database.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin position delete: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	statement, err := tx.PrepareContext(ctx, `DELETE FROM positions WHERE id = ? AND device_id = ? AND tracker_time = ?`)
+	if err != nil {
+		return 0, fmt.Errorf("prepare position delete: %w", err)
+	}
+	defer statement.Close()
+	var deleted int64
+	for _, key := range keys {
+		result, err := statement.ExecContext(ctx, key.ID, key.DeviceID, formatTime(key.TrackerTime))
+		if err != nil {
+			return 0, fmt.Errorf("delete position %d: %w", key.ID, err)
+		}
+		n, _ := result.RowsAffected()
+		deleted += n
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit position delete: %w", err)
+	}
+	return deleted, nil
+}
+
+// ApplyServerRetention deletes positions older than the configured server
+// retention. It does nothing when retention is unlimited (0 days).
+func (s *Store) ApplyServerRetention(ctx context.Context, now time.Time) (int64, error) {
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if settings.ServerRetentionDays == 0 {
+		return 0, nil
+	}
+	return s.PurgePositionsReceivedBefore(ctx, now.AddDate(0, 0, -settings.ServerRetentionDays))
+}
+
+// CountPositions reports how many positions the server currently stores.
+func (s *Store) CountPositions(ctx context.Context) (int64, error) {
+	var count int64
+	if err := s.database.QueryRowContext(ctx, `SELECT COUNT(*) FROM positions`).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count positions: %w", err)
+	}
+	return count, nil
 }

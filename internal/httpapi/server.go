@@ -21,6 +21,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/mleczakm/herring/internal/httpapi/assets"
+	"github.com/mleczakm/herring/internal/push"
 	"github.com/mleczakm/herring/internal/storage/sqlite"
 	"github.com/mleczakm/herring/internal/tracker/st901"
 	"golang.org/x/crypto/bcrypt"
@@ -32,6 +33,8 @@ type Sender interface {
 	Send(context.Context, string, string) (string, error)
 }
 type Store interface {
+	alertStore
+	pushStore
 	SetupRequired(context.Context) (bool, error)
 	CreateInitialAdmin(context.Context, string, string, string) error
 	UserByEmail(context.Context, string) (sqlite.User, error)
@@ -45,8 +48,17 @@ type Store interface {
 	RecordSMSCommand(context.Context, int64, string, string, string) error
 	UpdateSMSDelivery(context.Context, string, string) error
 	SetConfigurationStatus(context.Context, int64, string, string) error
+	Settings(context.Context) (sqlite.Settings, error)
+	SaveRetention(context.Context, int, int) error
+	ApplyServerRetention(context.Context, time.Time) (int64, error)
+	EnablePrivacy(context.Context, string, string, time.Time) error
+	DisablePrivacy(context.Context) error
+	CountPositions(context.Context) (int64, error)
+	OldestPositions(context.Context, int) ([]sqlite.StoredPosition, error)
+	DeletePositions(context.Context, []sqlite.PositionKey) (int64, error)
 }
 type Config struct {
+	Push                      *push.Service
 	SetupToken, WebhookSecret string
 	PublicOrigin              string
 	SecureCookies             bool
@@ -64,10 +76,16 @@ func New(store Store, sender Sender, config Config, logger *slog.Logger) *Server
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Server{store: store, sender: sender, config: config, logger: logger, pages: template.Must(template.New("pages").Parse(pages + publicPages))}
+	return &Server{store: store, sender: sender, config: config, logger: logger, pages: template.Must(template.New("pages").Parse(pages + publicPages + notificationPage))}
 }
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	s.alertRoutes(mux)
+	s.RegisterPush(mux, s.config.Push)
+	mux.HandleFunc("GET /powiadomienia", s.showNotifications)
+	mux.HandleFunc("GET /assets/alert-settings.css", s.asset("text/css; charset=utf-8", notificationCSS))
+	mux.HandleFunc("GET /assets/alert-settings.js", s.asset("text/javascript; charset=utf-8", notificationJS))
+	mux.HandleFunc("GET /assets/sledz-na-tropie.webp", s.asset("image/webp", detectiveIllustration))
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /assets/leaflet.js", s.asset("text/javascript; charset=utf-8", assets.LeafletJS))
 	mux.HandleFunc("GET /assets/leaflet.css", s.asset("text/css; charset=utf-8", assets.LeafletCSS))
@@ -86,6 +104,21 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("POST /devices", s.createDevice)
 	mux.HandleFunc("GET /api/positions", s.positions)
+	mux.HandleFunc("GET /ustawienia", s.showSettings)
+	mux.HandleFunc("POST /ustawienia", s.saveSettings)
+	mux.HandleFunc("POST /api/privacy/enable", s.enablePrivacy)
+	mux.HandleFunc("POST /api/privacy/disable", s.disablePrivacy)
+	mux.HandleFunc("GET /api/privacy/sync", s.privacySync)
+	mux.HandleFunc("POST /api/privacy/ack", s.privacyAck)
+	mux.HandleFunc("GET /assets/privacy.js", s.asset("text/javascript; charset=utf-8", []byte(privacyJS)))
+	mux.HandleFunc("GET /assets/settings.js", s.asset("text/javascript; charset=utf-8", []byte(settingsJS)))
+	mux.HandleFunc("GET /assets/icon-180.png", s.asset("image/png", assets.Icon180))
+	mux.HandleFunc("GET /assets/icon-192.png", s.asset("image/png", assets.Icon192))
+	mux.HandleFunc("GET /assets/icon-512.png", s.asset("image/png", assets.Icon512))
+	mux.HandleFunc("GET /manifest.webmanifest", s.uncached("application/manifest+json", []byte(webManifest)))
+	// One service worker per scope: it serves the offline shell (pwa.go) and
+	// shows Web Push notifications (push.go).
+	mux.HandleFunc("GET /sw.js", s.uncached("text/javascript; charset=utf-8", []byte(serviceWorkerJS+PushWorkerJS)))
 	mux.HandleFunc("POST /webhooks/sendly/{secret}", s.webhook)
 	return securityHeaders(mux)
 }
@@ -109,7 +142,7 @@ func (s *Server) landing(w http.ResponseWriter, r *http.Request, signedIn bool) 
 			return
 		}
 		if required {
-			entryURL, label = "/setup", "Skonfiguruj Herring"
+			entryURL, label = "/setup", "Zacznij konfigurację"
 		}
 	}
 	s.render(w, "landing", http.StatusOK, map[string]string{"EntryURL": entryURL, "EntryLabel": label})
@@ -126,7 +159,12 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, err)
 		return
 	}
-	s.render(w, "home", 200, map[string]any{"User": user, "Devices": devices, "Ready": s.sender != nil})
+	settings, err := s.store.Settings(r.Context())
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	s.render(w, "home", 200, map[string]any{"User": user, "Devices": devices, "Ready": s.sender != nil, "Active": "map", "Privacy": settings.PrivacyMode})
 }
 func (s *Server) showLogin(w http.ResponseWriter, r *http.Request) {
 	if s.redirectSetup(w, r) {
@@ -185,14 +223,14 @@ func (s *Server) createDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.sender == nil {
-		http.Error(w, "Sendly is not configured", 503)
+		http.Error(w, "Wysyłanie wiadomości SMS jest wyłączone.", 503)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 	_ = r.ParseForm()
 	model := r.FormValue("model")
 	if model != "st901-2g" && model != "st901-4g" {
-		http.Error(w, "unsupported tracker model", 422)
+		http.Error(w, "Wybierz obsługiwany model lokalizatora.", 422)
 		return
 	}
 	phone, err := st901.NormalizePhone(r.FormValue("phone"))
@@ -223,8 +261,18 @@ func (s *Server) createDevice(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_ = s.store.SetConfigurationStatus(r.Context(), device.ID, "awaiting_reply", "SMS-y wysłane. Oczekiwanie na odpowiedź RCONF trackera.")
+	_ = s.store.SetConfigurationStatus(r.Context(), device.ID, "awaiting_reply", "Wysłaliśmy ustawienia. Czekamy na potwierdzenie z lokalizatora.")
 	http.Redirect(w, r, "/?device="+strconv.FormatInt(device.ID, 10), 303)
+}
+
+// uncached serves files that must be revalidated: browsers check the web
+// manifest and service worker for updates at their fixed URLs.
+func (s *Server) uncached(contentType string, body []byte) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Cache-Control", "no-cache")
+		_, _ = w.Write(body)
+	}
 }
 func (s *Server) asset(contentType string, body []byte) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
@@ -236,6 +284,11 @@ func (s *Server) asset(contentType string, body []byte) http.HandlerFunc {
 func (s *Server) positions(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.currentUser(r); !ok {
 		http.Error(w, "unauthorized", 401)
+		return
+	}
+	settings, err := s.store.Settings(r.Context())
+	if err != nil {
+		s.internalError(w, r, err)
 		return
 	}
 	positions, err := s.store.LatestPositions(r.Context())
@@ -264,8 +317,11 @@ func (s *Server) positions(w http.ResponseWriter, r *http.Request) {
 		if name == "" {
 			name = p.Device.PhoneNumber
 		}
-		item := position{ID: p.Device.ID, Name: name, Model: p.Device.Model, ConfigStatus: p.Device.ConfigStatus, ConfigDetail: p.Device.ConfigDetail, HasPosition: p.HasPosition}
-		if p.HasPosition {
+		// In privacy mode positions are only readable by the bound browser
+		// through /api/privacy/sync, never through this shared endpoint.
+		hasPosition := p.HasPosition && !settings.PrivacyMode
+		item := position{ID: p.Device.ID, Name: name, Model: p.Device.Model, ConfigStatus: p.Device.ConfigStatus, ConfigDetail: p.Device.ConfigDetail, HasPosition: hasPosition}
+		if hasPosition {
 			item.Latitude, item.Longitude, item.SpeedKPH, item.Heading = p.Latitude, p.Longitude, p.SpeedKPH, p.Heading
 			item.GPSValid = p.GPSValid
 			item.TrackerTime = p.TrackerTime.UTC().Format(time.RFC3339)
@@ -318,9 +374,9 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if st901.ConfigurationMatches(event.Body, s.config.Tracker) {
-			_ = s.store.SetConfigurationStatus(r.Context(), d.ID, "configured", "Tracker potwierdził APN, tryb GPRS i endpoint Herring.")
+			_ = s.store.SetConfigurationStatus(r.Context(), d.ID, "configured", "Lokalizator potwierdził ustawienia połączenia.")
 		} else if strings.Contains(strings.ToUpper(event.Body), "RCONF") || strings.Contains(strings.ToUpper(event.Body), "MODE:") {
-			_ = s.store.SetConfigurationStatus(r.Context(), d.ID, "failed", "Tracker odpowiedział, ale ustawienia nie zgadzają się z profilem Herring.")
+			_ = s.store.SetConfigurationStatus(r.Context(), d.ID, "failed", "Lokalizator odpowiedział. Sprawdź jego ustawienia połączenia.")
 		}
 	default:
 		http.Error(w, "unsupported event", 400)
@@ -396,23 +452,23 @@ func (s *Server) createAdmin(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) validateSetup(name, email, password, confirmation, token string) string {
 	if s.config.SetupToken != "" && !secureEqual(token, s.config.SetupToken) {
-		return "The setup token is invalid."
+		return "Kod instalacji jest nieprawidłowy."
 	}
 	if n := utf8.RuneCountInString(name); n < 2 || n > 80 {
-		return "Display name must contain between 2 and 80 characters."
+		return "Nazwa użytkownika powinna mieć od 2 do 80 znaków."
 	}
 	a, e := mail.ParseAddress(email)
 	if e != nil || a.Address != email || len(email) > 254 {
-		return "Enter a valid email address."
+		return "Wpisz poprawny adres e-mail."
 	}
 	if len(password) < 12 {
-		return "Password must contain at least 12 characters."
+		return "Wpisz hasło o długości co najmniej 12 znaków."
 	}
 	if len(password) > 72 {
-		return "Password must not exceed 72 bytes."
+		return "Hasło jest za długie. Wybierz krótsze hasło."
 	}
 	if password != confirmation {
-		return "Password confirmation does not match."
+		return "Wpisane hasła różnią się od siebie."
 	}
 	return ""
 }

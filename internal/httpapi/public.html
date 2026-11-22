@@ -1,38 +1,40 @@
-{{define "git-icon"}}<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="5" r="2"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="7" r="2"/><path d="M7 7v10m10-8v1a5 5 0 0 1-5 5H9"/></svg>{{end}}
-
 {{define "landing"}}<!doctype html>
 <html lang="pl"><head>{{template "head"}}
-<title>Herring · Twoja mapa GPS</title>
-<meta name="description" content="Śledź pozycję lokalizatorów SinoTrack ST-901 na własnym serwerze. Herring łączy odbiór GPS, konfigurację SMS i mapę urządzeń.">
+<title>Śledź · Prywatna mapa Twojego auta</title>
+<meta name="description" content="Sprawdź, gdzie jest Twoje auto. Na śledź.mleczki.pl pozycje trafiają na serwer w Finlandii. Ty wybierasz, gdzie i jak długo zachować historię.">
 </head><body class="public-page">
 <header class="mast"><div class="wrap mast-inner">
   <a class="brand" href="/">{{template "wordmark"}}</a>
-  <nav aria-label="Nawigacja główna"><a class="quiet-link" href="#jak-dziala">Jak działa</a><a class="nav-button" href="{{.EntryURL}}">{{.EntryLabel}}</a></nav>
+  <nav aria-label="Nawigacja główna"><a class="quiet-link" href="#prywatnosc">Prywatność</a><a class="quiet-link" href="#powiadomienia">Powiadomienia</a><a class="nav-button" href="{{.EntryURL}}">{{.EntryLabel}}</a></nav>
 </div></header>
 <main class="wrap">
   <section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
-      <p class="kicker">{{template "icon-crosshair"}} Lokalizacja GPS / Open source</p>
-      <h1 id="hero-title">Złap sygnał.<br><em>Śledź ruch.</em></h1>
-      <p class="intro">Wszystkie Twoje lokalizatory na jednej mapie. Herring odbiera pozycje z urządzeń SinoTrack i zapisuje je na Twoim serwerze.</p>
-      <div class="actions"><a class="btn" href="{{.EntryURL}}">{{.EntryLabel}}</a><a class="code-link" href="https://github.com/mleczakm/herring">{{template "git-icon"}} Kod na GitHubie</a></div>
+      <p class="kicker">{{template "icon-crosshair"}} śledź.mleczki.pl</p>
+      <h1 id="hero-title">Twoje auto<br><em>Twoje trasy</em></h1>
+      <p class="intro">Sprawdź, gdzie stoi auto, i dowiedz się, kiedy ruszy. Śledź odbiera pozycję z Twojego lokalizatora na serwerze w Finlandii, w Unii Europejskiej. Ty wybierasz, jak długo zachować historię.</p>
+      <div class="actions"><a class="btn" href="{{.EntryURL}}">{{.EntryLabel}}</a><a class="code-link" href="#prywatnosc">Gdzie trafiają moje dane?</a></div>
     </div>
-    <figure class="chart">
-      <div class="chart-head"><span>{{template "icon-map"}} Mapa sygnału</span><span class="demo">Przykład</span></div>
-      <img class="bay" width="640" height="410" src="/assets/bay-chart.svg" alt="Przykładowy ślad GPS z Gdyni w kierunku Helu na mapie Zatoki Gdańskiej.">
-      <figcaption><span><i></i>Ślad GPS</span><span>Zatoka Gdańska, PL</span></figcaption>
-    </figure>
+    <img class="detective" width="1200" height="800" src="/assets/sledz-na-tropie.webp" alt="Śledź w rybackiej czapce bada przez lupę pomarańczowy ślad na morskiej mapie." fetchpriority="high">
   </section>
-  <section class="workflow" id="jak-dziala" aria-labelledby="workflow-title">
-    <h2 id="workflow-title">Od trackera do mapy</h2>
+  <section class="workflow" id="prywatnosc" aria-labelledby="privacy-title">
+    <h2 id="privacy-title">Ten sam lokalizator, inny adres</h2>
+    <p class="section-intro">Domyślnie Twój SinoTrack wysyła pozycję do systemu producenta z Chin. Gdy przełączysz swój ST-901 na Śledzia, kolejne odczyty trafią prosto do tej aplikacji. Możesz dalej używać tego samego urządzenia i karty SIM.</p>
     <div class="steps">
-      <article><span class="feature-icon">{{template "icon-gear"}}</span><h3>Konfiguracja przez SMS</h3><p>Wybierz wariant ST-901 i podaj numer karty SIM. Herring wyśle ustawienia przez Sendly i sprawdzi odpowiedź urządzenia.</p></article>
-      <article><span class="feature-icon">{{template "icon-activity"}}</span><h3>Sygnał na własnym serwerze</h3><p>Lokalizator przesyła odczyty GPS bezpośrednio do Twojej instalacji. Pozycje są zapisywane w lokalnej bazie SQLite.</p></article>
-      <article><span class="feature-icon">{{template "icon-map"}}</span><h3>Pozycja na mapie</h3><p>Wybierz urządzenie, by zobaczyć jego ostatnią pozycję, prędkość i czas odczytu. Panel odświeża dane co pięć sekund.</p></article>
+      <article><span class="feature-icon">{{template "icon-map"}}</span><h3>Trasy w Unii Europejskiej</h3><p>Śledź.mleczki.pl zapisuje pozycje na serwerze w Finlandii. Otwórz mapę po zalogowaniu, żeby zobaczyć, gdzie auto ostatnio wysłało sygnał.</p></article>
+      <article><span class="feature-icon">{{template "icon-geofence"}}</span><h3>Historia na Twoim urządzeniu</h3><p>Zainstaluj Śledzia z przeglądarki na telefonie lub komputerze i włącz tryb prywatny. Gdy otworzysz aplikację, pobierze odczyty. Po potwierdzeniu zapisu serwer usunie swoją kopię. Pobrana historia zostanie w tej jednej przeglądarce.</p></article>
+      <article><span class="feature-icon">{{template "icon-clock"}}</span><h3>Ty ustalasz czas</h3><p>Wybierz osobno, po ilu dniach stare pozycje mają znikać z serwera, a po ilu z przeglądarki. Możesz zachować ostatni tydzień albo dłuższą historię.</p></article>
     </div>
+  </section>
+  <section class="alert-story" id="powiadomienia" aria-labelledby="alert-title">
+    <div><h2 id="alert-title">Daj znać, gdy auto ruszy</h2>
+      <p>Nazwij miejsce po swojemu albo wybierz je z podpowiedzi opartych na częstych postojach. Możesz dostać wiadomość, gdy auto przyjedzie, odjedzie lub przekroczy wybraną przez Ciebie prędkość.</p>
+      <p>Sam wybierasz, które wiadomości dostajesz i czy Śledź może czasem zażartować. W trybie prywatnym powiadomienia o trasie są wstrzymane.</p>
+    </div>
+    <figure class="note-preview"><figcaption>{{template "brand-mark"}} Przykładowe powiadomienie</figcaption><blockquote>Auto wyruszyło od teściowej. Szykuj się!</blockquote></figure>
   </section>
 </main>
-<footer class="site-foot"><div class="wrap"><a class="brand" href="/">{{template "wordmark"}}</a><a href="https://github.com/mleczakm/herring/blob/main/LICENSE">Licencja MIT</a></div></footer>
+<footer class="site-foot"><div class="wrap"><a class="brand" href="/">{{template "wordmark"}}</a><a href="https://github.com/mleczakm/herring">Kod źródłowy</a></div></footer>
 </body></html>{{end}}
 
 {{define "auth-top"}}<header class="mast"><div class="wrap mast-inner">
@@ -41,14 +43,14 @@
 </div></header>{{end}}
 
 {{define "setup"}}<!doctype html>
-<html lang="pl"><head>{{template "head"}}<title>Konfiguracja · Herring</title></head>
+<html lang="pl"><head>{{template "head"}}<title>Konfiguracja · Śledź</title></head>
 <body class="public-page">{{template "auth-top"}}
 <main class="auth-shell"><div class="auth-card">
   <p class="kicker">{{template "icon-gear"}} Pierwsze uruchomienie</p>
-  <h1>Skonfiguruj Herring</h1><p>Utwórz konto administratora tej instalacji.</p>
+  <h1>Skonfiguruj Śledzia</h1><p>Utwórz konto administratora tej instalacji.</p>
   {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
   <form method="post">
-    {{if .TokenRequired}}<label>Token instalacji<input name="setup_token" type="password" required></label>{{end}}
+    {{if .TokenRequired}}<label>Kod instalacji<input name="setup_token" type="password" required></label>{{end}}
     <label>Nazwa użytkownika<input name="display_name" autocomplete="nickname" value="{{.DisplayName}}" required></label>
     <label>Adres e-mail<input name="email" type="email" autocomplete="email" value="{{.Email}}" required></label>
     <label>Hasło <small>(min. 12 znaków)</small><input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
@@ -58,7 +60,7 @@
 </div></main></body></html>{{end}}
 
 {{define "login"}}<!doctype html>
-<html lang="pl"><head>{{template "head"}}<title>Logowanie · Herring</title></head>
+<html lang="pl"><head>{{template "head"}}<title>Logowanie · Śledź</title></head>
 <body class="public-page">{{template "auth-top"}}
 <main class="auth-shell"><div class="auth-card">
   <p class="kicker">{{template "icon-crosshair"}} Panel lokalizacji</p>

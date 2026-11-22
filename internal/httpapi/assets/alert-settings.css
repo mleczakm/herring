@@ -1,0 +1,13 @@
+.alert-settings{margin-top:2rem;max-width:52rem}
+.alert-settings>p,.alert-card>p{color:var(--ink-soft)}
+.alert-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.2rem;margin-top:1rem}
+.alert-card h2{font-size:1.1rem}.alert-card h3{font-size:1rem;margin:1rem 0 .4rem}
+.alert-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1rem}
+.alert-card form>.btn{margin-top:1rem}.alert-check{display:flex;align-items:center;gap:.5rem;margin-top:.5rem}.alert-check input{width:auto;margin:0}
+.device-alert-form+.device-alert-form{border-top:1px solid var(--border);margin-top:1rem;padding-top:.3rem}
+.device-alert-form input[type=number]{max-width:12rem}.place-list{list-style:none;padding:0}.place-list li{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 0;border-bottom:1px solid var(--border)}
+.place-list small{display:block;color:var(--ink-faint)}.place-list button,.suggestion-button{border:0;background:transparent;color:var(--action);font:inherit;text-decoration:underline;cursor:pointer;padding:.3rem}.alert-notice{border-left:3px solid var(--action);padding:.6rem .9rem;background:#fff4e8}.alert-status:empty{display:none}.alert-status{font-weight:600}.alert-status.error{color:var(--alert)}
+@media(max-width:600px){.alert-grid{grid-template-columns:1fr}}
+.alert-header{background:var(--sea);color:var(--surface);padding:1rem max(1rem,calc((100% - 52rem)/2));display:flex;align-items:center;justify-content:space-between;gap:1rem}.alert-header a{color:inherit}.alert-main{padding:0 1rem 3rem}.alert-settings{margin-left:auto;margin-right:auto}
+.alert-place-choices{border:1px solid var(--border);border-radius:.6rem;margin:1rem 0 0;padding:.5rem .8rem}.alert-place-choices legend{font-size:.85rem;font-weight:600;color:var(--ink-soft);padding:0 .3rem}
+.alert-brand{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--font-title);font-size:1.15rem}.alert-brand img{width:2rem;height:2rem}.alert-settings h1{font-size:clamp(1.7rem,4vw,2.3rem)}#place-map{height:20rem;border:1px solid var(--border);border-radius:.7rem;z-index:0} .alert-card details{margin-top:.8rem}.alert-card summary{cursor:pointer;color:var(--action);font-weight:600}

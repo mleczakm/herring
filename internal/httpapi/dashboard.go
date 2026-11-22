@@ -173,11 +173,41 @@ if (mapEl && window.L) {
     }
   }
 
-  function poll(){
-    fetch("/api/positions", {headers: {"Accept": "application/json"}})
+  var lastDevices = [];
+  function show(devices){ lastDevices = devices; render(devices); }
+  function serverPoll(){
+    return fetch("/api/positions", {headers: {"Accept": "application/json"}})
       .then(function(r){ return r.ok ? r.json() : []; })
-      .then(render)
-      .catch(function(){});
+      .then(show);
+  }
+
+  // Privacy mode: the server hands positions only to the bound browser, which
+  // stores them in IndexedDB. The map is drawn from that local copy, so it
+  // also works offline. Other browsers see the trackers without positions.
+  var privacyLocal = document.body.getAttribute("data-privacy") === "local" && window.HerringPrivacy && window.indexedDB;
+  var privacyNotice = false;
+  function notifyOnce(message){ if (!privacyNotice) { privacyNotice = true; showToast(message); } }
+  function privacyPoll(){
+    return HerringPrivacy.sync().then(function(result){
+      if (result.status === "no_key" || result.status === "not_bound" || result.status === "privacy_disabled") {
+        notifyOnce("Tryb prywatny: historia pozycji jest dostępna tylko na urządzeniu, na którym go włączono.");
+        return serverPoll();
+      }
+      if (result.status !== "ok") notifyOnce("Brak połączenia z serwerem. Pokazuję pozycje zapisane na tym urządzeniu.");
+      return HerringPrivacy.devices().then(show);
+    }, function(){
+      notifyOnce("Brak połączenia z serwerem. Pokazuję pozycje zapisane na tym urządzeniu.");
+      return HerringPrivacy.devices().then(show);
+    });
+  }
+
+  var polling = false;
+  function poll(){
+    if (polling) return;
+    polling = true;
+    (privacyLocal ? privacyPoll() : serverPoll())
+      .catch(function(){})
+      .then(function(){ polling = false; });
   }
   poll();
   setInterval(poll, 5000);
@@ -186,10 +216,8 @@ if (mapEl && window.L) {
     var item = e.target.closest(".device-item");
     if (!item) return;
     var id = item.getAttribute("data-id");
-    fetch("/api/positions").then(function(r){ return r.json(); }).then(function(devices){
-      var d = devices.filter(function(x){ return String(x.id) === id; })[0];
-      if (d) focusDevice(d);
-    }).catch(function(){});
+    var d = lastDevices.filter(function(x){ return String(x.id) === id; })[0];
+    if (d) focusDevice(d);
   });
 }
 })();

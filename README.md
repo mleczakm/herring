@@ -11,12 +11,15 @@ The project is at an early stage. The initial milestone covers:
 - displaying the latest position and history;
 - configuring a tracker through Sendly SMS;
 - ingesting tracker SMS replies through a Sendly webhook;
-- offline, movement, geofence, and daily-summary notifications;
-- installable PWA and Web Push notifications.
+- saved places, frequent-stop suggestions, and opt-in arrival, departure, and speed alerts;
+- installable PWA and Web Push notifications;
+- an optional privacy mode that keeps location history only in one installed
+  browser, and retention periods for the server and the browser.
 
 See [the implementation plan](docs/plan.md),
-[architecture notes](docs/architecture.md), and
-[adding a tracker](docs/adding-a-tracker.md). Production releases use the
+[architecture notes](docs/architecture.md),
+[adding a tracker](docs/adding-a-tracker.md), and
+[privacy mode and data retention](docs/privacy.md). See [browser notifications](docs/notifications.md) for delivery and optional Gemini settings. Production releases use the
 [Mikrus deployment process](docs/deployment.md).
 
 ## Development
@@ -38,7 +41,7 @@ change the location and provide a comma-separated allowlist of tracker IDs in
 foreign-key boundary.
 
 Open [the local app](http://localhost:8080/) for the Polish introduction and
-installation entry point. On a new database, **Skonfiguruj Herring** opens
+installation entry point. On a new database, **Zacznij konfigurację** opens
 `/setup` to create the first administrator. Returning visitors can sign in,
 and authenticated users go straight to the live map. The public introduction
 is always available at `/o-projekcie`. When `HERRING_ENV=production`, an empty

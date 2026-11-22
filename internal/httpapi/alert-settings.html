@@ -1,0 +1,49 @@
+{{define "alert-settings"}}
+<!doctype html><html lang="pl"><head>{{template "head"}}<title>Miejsca i powiadomienia · Śledź</title><link rel="stylesheet" href="/assets/leaflet.css"><link rel="stylesheet" href="/assets/alert-settings.css"></head><body><header class="alert-header"><a class="alert-brand" href="/">{{template "wordmark"}}</a><a href="/">Wróć do mapy</a></header><main class="alert-main">
+<section class="alert-settings" id="alert-settings" data-private="{{if .Privacy}}true{{else}}false{{end}}">
+  <h1>Miejsca i powiadomienia</h1>
+  <p>Wskaż na mapie dom lub inne ważne miejsce. Potem wybierz, kiedy Śledź ma dać Ci znać.</p>
+  {{if .Privacy}}<p class="alert-notice">Tryb prywatny jest włączony. Historia trafia do aplikacji na wybranym urządzeniu. Podpowiedzi i powiadomienia o trasie są wstrzymane. Nazwy i położenie miejsc, które dodasz ręcznie, zapiszą się na serwerze.</p>{{end}}
+  <p id="alert-status" class="alert-status" role="status" aria-live="polite"></p>
+  <div class="alert-card">
+    <h2>Twoje miejsca</h2>
+    <p>Promień określa obszar wokół punktu. Wybierz miejsca osobno dla każdego urządzenia.</p>
+    <ul id="place-list" class="place-list"><li>Wczytywanie miejsc…</li></ul>
+    <form id="place-form">
+      <div class="alert-grid">
+        <label>Nazwa miejsca<input name="name" required maxlength="100" placeholder="np. Dom"></label>
+        <label>Promień w metrach<input name="radius_m" type="number" min="25" max="10000" value="200" required></label>
+      </div>
+      <p>Wskaż miejsce na mapie lub wpisz współrzędne poniżej. Okrąg pokazuje jego zasięg.</p>
+      <div id="place-map" aria-label="Mapa wyboru miejsca"></div>
+      <details open><summary>Wpisz współrzędne</summary><div class="alert-grid">
+        <label>Szerokość geograficzna<input name="latitude" type="number" min="-90" max="90" step="any" required></label>
+        <label>Długość geograficzna<input name="longitude" type="number" min="-180" max="180" step="any" required></label>
+      </div></details>
+      <button class="btn" type="submit">Dodaj miejsce</button>
+    </form>
+    <div id="place-suggestions"><h3>Propozycje z historii postojów</h3><p>Wczytywanie propozycji…</p></div>
+  </div>
+  <div class="alert-card">
+    <h2>Powiadomienia dla urządzeń</h2>
+    <p>Wybierz miejsca, o których chcesz otrzymywać powiadomienia. Wpisz 0, aby wyłączyć powiadomienia o prędkości.</p>
+    {{range .Devices}}<form class="device-alert-form" data-device-id="{{.ID}}">
+      <h3>{{if .Name}}{{.Name}}{{else}}{{.PhoneNumber}}{{end}}</h3>
+      <fieldset class="alert-place-choices"><legend>Obserwowane miejsca</legend><div class="alert-place-options">Wczytywanie miejsc…</div></fieldset>
+      <label class="alert-check"><input type="checkbox" name="entry"> Przyjazd do miejsca</label>
+      <label class="alert-check"><input type="checkbox" name="exit"> Wyjazd z miejsca</label>
+      <label class="alert-check"><input type="checkbox" name="humor"> Dodaj żart do wiadomości</label>
+      <label>Prędkość powyżej (km/h)<input type="number" name="speed_kph" min="0" max="500" step="1" value="0" required></label>
+      <button class="btn secondary" type="submit" disabled>Zapisz ustawienia</button>
+    </form>{{else}}<p>Dodaj urządzenie, aby ustawić powiadomienia.</p>{{end}}
+  </div>
+  <div class="alert-card">
+    <h2>Powiadomienia w tej przeglądarce</h2>
+    <p>Włącz je na telefonie lub komputerze, na którym chcesz dostawać wiadomości. Treść może być widoczna na zablokowanym ekranie.</p>
+    <p id="push-status" role="status" aria-live="polite">Sprawdzanie dostępności…</p>
+    <button id="push-enable" class="btn" type="button" hidden>Włącz powiadomienia</button>
+    <button id="push-disable" class="btn secondary" type="button" hidden>Wyłącz powiadomienia</button>
+  </div>
+</section>
+</main><script src="/assets/leaflet.js" defer></script><script src="/assets/alert-settings.js" defer></script></body></html>
+{{end}}
