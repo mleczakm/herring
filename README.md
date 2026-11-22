@@ -14,8 +14,9 @@ The project is at an early stage. The initial milestone covers:
 - offline, movement, geofence, and daily-summary notifications;
 - installable PWA and Web Push notifications.
 
-See [the implementation plan](docs/plan.md) and
-[architecture notes](docs/architecture.md). Production releases use the
+See [the implementation plan](docs/plan.md),
+[architecture notes](docs/architecture.md), and
+[adding a tracker](docs/adding-a-tracker.md). Production releases use the
 [Mikrus deployment process](docs/deployment.md).
 
 ## Development
@@ -44,12 +45,15 @@ is always available at `/o-projekcie`. When `HERRING_ENV=production`, an empty
 installation refuses to start without `HERRING_SETUP_TOKEN`; the setup form
 requires that token and closes permanently after the administrator is created.
 
-After login, adding an ST-901 needs only its variant and SIM number. Herring
+After login, an ST-901 is added with its variant and SIM number. Herring
 uses the installation profile to send the control number, APN, TCP endpoint,
 reporting intervals, GPRS mode and a final `RCONF` query through Sendly. The UI
 shows the live state and only reports **configured** after the tracker's inbound
 reply matches the expected APN and endpoint—not merely after Sendly accepts or
-delivers the outgoing messages.
+delivers the outgoing messages. Its tracker ID must also be listed in
+`HERRING_DEVICE_IDS`, or its positions are rejected. See
+[Adding a tracker](docs/adding-a-tracker.md) for the full procedure and
+troubleshooting.
 
 The production `DOTENV` secret must also contain:
 
