@@ -10,7 +10,7 @@ var publicPages string
 // CDN at runtime, so the strict CSP in securityHeaders never needs to trust a
 // third party for script execution — only map tile images are cross-origin.
 const pages = `
-{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#152e33"><link rel="icon" href="/assets/herring.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png"><link rel="stylesheet" href="/assets/herring.css">{{end}}
+{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0e3332"><link rel="icon" href="/assets/herring.svg?v=2" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=2"><link rel="stylesheet" href="/assets/herring.css?v=2">{{end}}
 
 
 
@@ -30,7 +30,7 @@ const pages = `
 {{define "icon-clock"}}<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>{{end}}
 {{define "icon-logout"}}<svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>{{end}}
 
-{{define "brand-mark"}}<img class="brand-mark" src="/assets/herring.svg" width="44" height="44" alt="">{{end}}
+{{define "brand-mark"}}<img class="brand-mark" src="/assets/herring.svg?v=2" width="44" height="44" alt="">{{end}}
 {{define "wordmark"}}{{template "brand-mark"}}<span class="wordmark">Śledź</span>{{end}}
 
 {{define "sidebar"}}<aside class="sidebar" id="sidebar">

@@ -21,9 +21,6 @@ var Styles []byte
 //go:embed herring.svg
 var BrandMark []byte
 
-//go:embed bay-chart.svg
-var BayChart []byte
-
 // PNG icons rendered from herring.svg with rsvg-convert, for PWA install
 // prompts and the iOS home screen, which do not accept SVG icons.
 //
@@ -35,3 +32,9 @@ var Icon192 []byte
 
 //go:embed icon-512.png
 var Icon512 []byte
+
+// Full-bleed variant whose artwork stays inside the maskable safe zone, for
+// launchers that crop icons to a circle or squircle.
+//
+//go:embed icon-maskable-512.png
+var IconMaskable512 []byte

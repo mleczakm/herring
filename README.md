@@ -19,7 +19,7 @@ The project is at an early stage. The initial milestone covers:
 See [the implementation plan](docs/plan.md),
 [architecture notes](docs/architecture.md),
 [adding a tracker](docs/adding-a-tracker.md), and
-[privacy mode and data retention](docs/privacy.md). See [browser notifications](docs/notifications.md) for delivery and optional Gemini settings. Production releases use the
+[privacy mode and data retention](docs/privacy.md). The [brand guide](docs/branding.md) covers the voice, palette and logo. See [browser notifications](docs/notifications.md) for delivery and optional Gemini settings. Production releases use the
 [Mikrus deployment process](docs/deployment.md).
 
 ## Development

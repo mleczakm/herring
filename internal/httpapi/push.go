@@ -103,7 +103,7 @@ self.addEventListener('push', event => {
   try { data = event.data ? event.data.json() : {}; } catch (_) {}
   const title = typeof data.title === 'string' ? data.title : 'Śledź';
   const body = typeof data.body === 'string' ? data.body : 'Nowy alert lokalizatora.';
-  event.waitUntil(self.registration.showNotification(title, {body, icon:'/assets/icon-192.png', badge:'/assets/icon-192.png', data:{url:'/'}}));
+  event.waitUntil(self.registration.showNotification(title, {body, icon:'/assets/icon-192.png?v=2', badge:'/assets/icon-192.png?v=2', data:{url:'/'}}));
 });
 self.addEventListener('notificationclick', event => {
   event.notification.close();

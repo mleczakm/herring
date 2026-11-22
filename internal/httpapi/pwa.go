@@ -12,12 +12,13 @@ const webManifest = `{
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#152e33",
-  "theme_color": "#152e33",
+  "background_color": "#0e3332",
+  "theme_color": "#0e3332",
   "icons": [
-    {"src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png"},
-    {"src": "/assets/herring.svg", "sizes": "any", "type": "image/svg+xml"}
+    {"src": "/assets/icon-192.png?v=2", "sizes": "192x192", "type": "image/png"},
+    {"src": "/assets/icon-512.png?v=2", "sizes": "512x512", "type": "image/png"},
+    {"src": "/assets/icon-maskable-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    {"src": "/assets/herring.svg?v=2", "sizes": "any", "type": "image/svg+xml"}
   ]
 }
 `
@@ -26,12 +27,13 @@ const webManifest = `{
 // offline and can still show positions kept in privacy mode. API responses are
 // never cached: in privacy mode the only copy of history is in IndexedDB.
 //
-// Bump CACHE whenever a precached asset URL changes.
+// Bump CACHE whenever a precached asset changes. Assets are cache-first and
+// served as immutable, so a changed file also needs a new ?v= in its URL.
 const serviceWorkerJS = `"use strict";
-var CACHE = "herring-shell-alerts-v1";
+var CACHE = "sledz-shell-v2";
 var ASSETS = [
-  "/assets/herring.css",
-  "/assets/herring.svg",
+  "/assets/herring.css?v=2",
+  "/assets/herring.svg?v=2",
   "/assets/leaflet.css",
   "/assets/leaflet.js",
   "/assets/dashboard.js?v=3",

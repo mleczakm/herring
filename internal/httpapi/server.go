@@ -94,7 +94,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /assets/dashboard.js", s.asset("text/javascript; charset=utf-8", []byte(dashboardJS)))
 	mux.HandleFunc("GET /assets/herring.css", s.asset("text/css; charset=utf-8", assets.Styles))
 	mux.HandleFunc("GET /assets/herring.svg", s.asset("image/svg+xml", assets.BrandMark))
-	mux.HandleFunc("GET /assets/bay-chart.svg", s.asset("image/svg+xml", assets.BayChart))
 	mux.HandleFunc("GET /o-projekcie", s.about)
 	mux.HandleFunc("GET /setup", s.showSetup)
 	mux.HandleFunc("POST /setup", s.createAdmin)
@@ -115,6 +114,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /assets/icon-180.png", s.asset("image/png", assets.Icon180))
 	mux.HandleFunc("GET /assets/icon-192.png", s.asset("image/png", assets.Icon192))
 	mux.HandleFunc("GET /assets/icon-512.png", s.asset("image/png", assets.Icon512))
+	mux.HandleFunc("GET /assets/icon-maskable-512.png", s.asset("image/png", assets.IconMaskable512))
 	mux.HandleFunc("GET /manifest.webmanifest", s.uncached("application/manifest+json", []byte(webManifest)))
 	// One service worker per scope: it serves the offline shell (pwa.go) and
 	// shows Web Push notifications (push.go).
