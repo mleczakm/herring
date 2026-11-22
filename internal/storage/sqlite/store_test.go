@@ -182,6 +182,37 @@ func TestLinkTrackerIfUnambiguousSkipsWhenMultipleAwaiting(t *testing.T) {
 	}
 }
 
+func TestLinkTrackerIfUnambiguousIgnoresUnregisteredTracker(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "herring.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	if _, err := store.CreateManagedDevice(ctx, "Rower", "st901-2g", "+48500600700"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RegisterDevice(ctx, "1234567890"); err != nil {
+		t.Fatal(err)
+	}
+	// A stray sender on the public TCP port must not claim the pending device.
+	if err := store.LinkTrackerIfUnambiguous(ctx, "9999999999"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.LinkTrackerIfUnambiguous(ctx, "1234567890"); err != nil {
+		t.Fatal(err)
+	}
+
+	devices, err := store.ManagedDevices(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(devices) != 1 || devices[0].TrackerID != "1234567890" {
+		t.Fatalf("devices = %+v, want sole device linked to 1234567890", devices)
+	}
+}
+
 func TestOpenEnablesRequiredPragmas(t *testing.T) {
 	store, err := Open(context.Background(), filepath.Join(t.TempDir(), "herring.db"))
 	if err != nil {

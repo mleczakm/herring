@@ -239,13 +239,18 @@ func scanManaged(row scanner) (ManagedDevice, error) {
 // managed device the first time it reports in. It only links automatically
 // when exactly one managed device is still awaiting a tracker link, since a
 // phone-number-only setup has no other way to tell trackers apart.
+//
+// Only identifiers registered through HERRING_DEVICE_IDS are linked. The TCP
+// port is public, so an unknown sender must never claim a pending device:
+// its positions are rejected anyway and the link would hide the real tracker.
 func (s *Store) LinkTrackerIfUnambiguous(ctx context.Context, deviceID string) error {
 	_, err := s.database.ExecContext(ctx, `
         UPDATE managed_devices SET tracker_id=?
         WHERE tracker_id IS NULL
+          AND EXISTS (SELECT 1 FROM devices WHERE id=?)
           AND NOT EXISTS (SELECT 1 FROM managed_devices WHERE tracker_id=?)
           AND (SELECT COUNT(*) FROM managed_devices WHERE tracker_id IS NULL) = 1`,
-		deviceID, deviceID)
+		deviceID, deviceID, deviceID)
 	if err != nil {
 		return fmt.Errorf("link tracker %s: %w", deviceID, err)
 	}
