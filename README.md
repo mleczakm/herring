@@ -1,3 +1,5 @@
+<img src="internal/httpapi/assets/herring.svg" width="56" height="56" alt="">
+
 # Herring
 
 Herring is a self-hosted GPS tracking service written in Go. The first supported
@@ -22,7 +24,7 @@ Requirements: Go 1.24 or newer.
 
 ```shell
 go test ./...
-go run ./cmd/herring
+HERRING_TRACKER_PUBLIC_PORT=8090 go run ./cmd/herring
 ```
 
 The process exposes HTTP on `:8080` and the SinoTrack TCP listener on `:8090`.
@@ -34,8 +36,11 @@ change the location and provide a comma-separated allowlist of tracker IDs in
 `HERRING_DEVICE_IDS`; frames from other IDs are rejected by the database
 foreign-key boundary.
 
-On a new database, opening `/` redirects to `/setup`, where the first
-administrator can be registered. When `HERRING_ENV=production`, an empty
+Open [the local app](http://localhost:8080/) for the Polish introduction and
+installation entry point. On a new database, **Skonfiguruj Herring** opens
+`/setup` to create the first administrator. Returning visitors can sign in,
+and authenticated users go straight to the live map. The public introduction
+is always available at `/o-projekcie`. When `HERRING_ENV=production`, an empty
 installation refuses to start without `HERRING_SETUP_TOKEN`; the setup form
 requires that token and closes permanently after the administrator is created.
 

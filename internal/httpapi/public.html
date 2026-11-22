@@ -1,0 +1,72 @@
+{{define "git-icon"}}<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="5" r="2"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="7" r="2"/><path d="M7 7v10m10-8v1a5 5 0 0 1-5 5H9"/></svg>{{end}}
+
+{{define "landing"}}<!doctype html>
+<html lang="pl"><head>{{template "head"}}
+<title>Herring · Twoja mapa GPS</title>
+<meta name="description" content="Śledź pozycję lokalizatorów SinoTrack ST-901 na własnym serwerze. Herring łączy odbiór GPS, konfigurację SMS i mapę urządzeń.">
+</head><body class="public-page">
+<header class="mast"><div class="wrap mast-inner">
+  <a class="brand" href="/">{{template "wordmark"}}</a>
+  <nav aria-label="Nawigacja główna"><a class="quiet-link" href="#jak-dziala">Jak działa</a><a class="nav-button" href="{{.EntryURL}}">{{.EntryLabel}}</a></nav>
+</div></header>
+<main class="wrap">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <p class="kicker">{{template "icon-crosshair"}} Lokalizacja GPS / Open source</p>
+      <h1 id="hero-title">Złap sygnał.<br><em>Śledź ruch.</em></h1>
+      <p class="intro">Wszystkie Twoje lokalizatory na jednej mapie. Herring odbiera pozycje z urządzeń SinoTrack i zapisuje je na Twoim serwerze.</p>
+      <div class="actions"><a class="btn" href="{{.EntryURL}}">{{.EntryLabel}}</a><a class="code-link" href="https://github.com/mleczakm/herring">{{template "git-icon"}} Kod na GitHubie</a></div>
+    </div>
+    <figure class="chart">
+      <div class="chart-head"><span>{{template "icon-map"}} Mapa sygnału</span><span class="demo">Przykład</span></div>
+      <img class="bay" width="640" height="410" src="/assets/bay-chart.svg" alt="Przykładowy ślad GPS z Gdyni w kierunku Helu na mapie Zatoki Gdańskiej.">
+      <figcaption><span><i></i>Ślad GPS</span><span>Zatoka Gdańska, PL</span></figcaption>
+    </figure>
+  </section>
+  <section class="workflow" id="jak-dziala" aria-labelledby="workflow-title">
+    <h2 id="workflow-title">Od trackera do mapy</h2>
+    <div class="steps">
+      <article><span class="feature-icon">{{template "icon-gear"}}</span><h3>Konfiguracja przez SMS</h3><p>Wybierz wariant ST-901 i podaj numer karty SIM. Herring wyśle ustawienia przez Sendly i sprawdzi odpowiedź urządzenia.</p></article>
+      <article><span class="feature-icon">{{template "icon-activity"}}</span><h3>Sygnał na własnym serwerze</h3><p>Lokalizator przesyła odczyty GPS bezpośrednio do Twojej instalacji. Pozycje są zapisywane w lokalnej bazie SQLite.</p></article>
+      <article><span class="feature-icon">{{template "icon-map"}}</span><h3>Pozycja na mapie</h3><p>Wybierz urządzenie, by zobaczyć jego ostatnią pozycję, prędkość i czas odczytu. Panel odświeża dane co pięć sekund.</p></article>
+    </div>
+  </section>
+</main>
+<footer class="site-foot"><div class="wrap"><a class="brand" href="/">{{template "wordmark"}}</a><a href="https://github.com/mleczakm/herring/blob/main/LICENSE">Licencja MIT</a></div></footer>
+</body></html>{{end}}
+
+{{define "auth-top"}}<header class="mast"><div class="wrap mast-inner">
+  <a class="brand" href="/o-projekcie">{{template "wordmark"}}</a>
+  <a class="quiet-link" href="/o-projekcie">O projekcie</a>
+</div></header>{{end}}
+
+{{define "setup"}}<!doctype html>
+<html lang="pl"><head>{{template "head"}}<title>Konfiguracja · Herring</title></head>
+<body class="public-page">{{template "auth-top"}}
+<main class="auth-shell"><div class="auth-card">
+  <p class="kicker">{{template "icon-gear"}} Pierwsze uruchomienie</p>
+  <h1>Skonfiguruj Herring</h1><p>Utwórz konto administratora tej instalacji.</p>
+  {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+  <form method="post">
+    {{if .TokenRequired}}<label>Token instalacji<input name="setup_token" type="password" required></label>{{end}}
+    <label>Nazwa użytkownika<input name="display_name" autocomplete="nickname" value="{{.DisplayName}}" required></label>
+    <label>Adres e-mail<input name="email" type="email" autocomplete="email" value="{{.Email}}" required></label>
+    <label>Hasło <small>(min. 12 znaków)</small><input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
+    <label>Powtórz hasło<input name="password_confirmation" type="password" autocomplete="new-password" minlength="12" required></label>
+    <button class="btn">Utwórz administratora</button>
+  </form>
+</div></main></body></html>{{end}}
+
+{{define "login"}}<!doctype html>
+<html lang="pl"><head>{{template "head"}}<title>Logowanie · Herring</title></head>
+<body class="public-page">{{template "auth-top"}}
+<main class="auth-shell"><div class="auth-card">
+  <p class="kicker">{{template "icon-crosshair"}} Panel lokalizacji</p>
+  <h1>Zaloguj się</h1><p>Otwórz mapę swoich urządzeń.</p>
+  {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+  <form method="post">
+    <label>Adres e-mail<input name="email" type="email" autocomplete="username" required></label>
+    <label>Hasło<input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="btn">Zaloguj się</button>
+  </form>
+</div></main></body></html>{{end}}

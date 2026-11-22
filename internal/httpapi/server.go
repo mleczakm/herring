@@ -64,7 +64,7 @@ func New(store Store, sender Sender, config Config, logger *slog.Logger) *Server
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Server{store: store, sender: sender, config: config, logger: logger, pages: template.Must(template.New("pages").Parse(pages))}
+	return &Server{store: store, sender: sender, config: config, logger: logger, pages: template.Must(template.New("pages").Parse(pages + publicPages))}
 }
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -74,12 +74,16 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /assets/space-grotesk-latin.woff2", s.asset("font/woff2", assets.SpaceGroteskLatin))
 	mux.HandleFunc("GET /assets/space-grotesk-latin-ext.woff2", s.asset("font/woff2", assets.SpaceGroteskLatinExt))
 	mux.HandleFunc("GET /assets/dashboard.js", s.asset("text/javascript; charset=utf-8", []byte(dashboardJS)))
+	mux.HandleFunc("GET /assets/herring.css", s.asset("text/css; charset=utf-8", assets.Styles))
+	mux.HandleFunc("GET /assets/herring.svg", s.asset("image/svg+xml", assets.BrandMark))
+	mux.HandleFunc("GET /assets/bay-chart.svg", s.asset("image/svg+xml", assets.BayChart))
+	mux.HandleFunc("GET /o-projekcie", s.about)
 	mux.HandleFunc("GET /setup", s.showSetup)
 	mux.HandleFunc("POST /setup", s.createAdmin)
 	mux.HandleFunc("GET /login", s.showLogin)
 	mux.HandleFunc("POST /login", s.login)
 	mux.HandleFunc("POST /logout", s.logout)
-	mux.HandleFunc("GET /", s.home)
+	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("POST /devices", s.createDevice)
 	mux.HandleFunc("GET /api/positions", s.positions)
 	mux.HandleFunc("POST /webhooks/sendly/{secret}", s.webhook)
@@ -89,13 +93,32 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte("{\"status\":\"ok\"}\n"))
 }
-func (s *Server) home(w http.ResponseWriter, r *http.Request) {
-	if s.redirectSetup(w, r) {
-		return
+func (s *Server) about(w http.ResponseWriter, r *http.Request) {
+	_, signedIn := s.currentUser(r)
+	s.landing(w, r, signedIn)
+}
+
+func (s *Server) landing(w http.ResponseWriter, r *http.Request, signedIn bool) {
+	entryURL, label := "/login", "Zaloguj się"
+	if signedIn {
+		entryURL, label = "/", "Otwórz mapę"
+	} else {
+		required, err := s.store.SetupRequired(r.Context())
+		if err != nil {
+			s.internalError(w, r, err)
+			return
+		}
+		if required {
+			entryURL, label = "/setup", "Skonfiguruj Herring"
+		}
 	}
+	s.render(w, "landing", http.StatusOK, map[string]string{"EntryURL": entryURL, "EntryLabel": label})
+}
+
+func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	user, ok := s.currentUser(r)
 	if !ok {
-		http.Redirect(w, r, "/login", 303)
+		s.landing(w, r, false)
 		return
 	}
 	devices, err := s.store.ManagedDevices(r.Context())
@@ -206,7 +229,7 @@ func (s *Server) createDevice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) asset(contentType string, body []byte) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", contentType)
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		w.Header().Set("Cache-Control", "public, max-age=0, must-revalidate")
 		_, _ = w.Write(body)
 	}
 }
@@ -435,7 +458,7 @@ func (s *Server) sameOrigin(r *http.Request) bool {
 }
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https://*.basemaps.cartocdn.com; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")

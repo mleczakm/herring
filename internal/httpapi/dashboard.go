@@ -6,7 +6,7 @@ package httpapi
 // 'unsafe-inline' for scripts.
 const dashboardJS = `(function(){
 "use strict";
-var COLORS = {ok:"#10B981", info:"#0284C7", alert:"#EF4444", offline:"#6B7280"};
+var COLORS = {ok:"#267459", info:"#32626a", alert:"#b94d36", offline:"#586c6c"};
 
 function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;return d.innerHTML;}
 function relTime(iso){
@@ -36,12 +36,14 @@ function classify(d){
 var sidebar = document.getElementById("sidebar");
 var backdrop = document.getElementById("sidebar-backdrop");
 var menuToggle = document.getElementById("menu-toggle");
-function closeSidebar(){ sidebar.classList.remove("open"); backdrop.classList.remove("open"); }
+function closeSidebar(){ sidebar.classList.remove("open"); backdrop.classList.remove("open"); menuToggle.setAttribute("aria-expanded", "false"); }
 if (menuToggle) menuToggle.addEventListener("click", function(){
   sidebar.classList.toggle("open");
   backdrop.classList.toggle("open");
+  menuToggle.setAttribute("aria-expanded", String(sidebar.classList.contains("open")));
 });
 if (backdrop) backdrop.addEventListener("click", closeSidebar);
+sidebar.querySelector('a[href="#device-search"]').addEventListener("click", closeSidebar);
 
 // --- User menu ---
 var userToggle = document.getElementById("user-menu-toggle");
@@ -88,10 +90,10 @@ if (search) search.addEventListener("input", function(){
 var mapEl = document.getElementById("map");
 if (mapEl && window.L) {
   var map = L.map("map", {zoomControl:false}).setView([52.0, 19.3], 6);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    subdomains: "abcd",
-    maxZoom: 20
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    referrerPolicy: "origin",
+    maxZoom: 19
   }).addTo(map);
   L.control.zoom({position:"bottomright"}).addTo(map);
 
@@ -131,13 +133,13 @@ if (mapEl && window.L) {
 
   function focusDevice(d){
     if (!d.has_position) {
-      showToast("Zgubiłem trop! Sprawdź zasilanie trackera lub poczekaj na pierwszy sygnał.");
+      showToast("Brak pozycji. Sprawdź zasilanie lokalizatora lub poczekaj na pierwszy sygnał.");
       return;
     }
     map.flyTo([d.latitude, d.longitude], 15, {duration: 1.3});
     var marker = markers[d.id];
     if (marker) setTimeout(function(){ marker.openPopup(); }, 900);
-    showToast('Cel "' + d.name + '" namierzony. Zbliżam widok satelitarny.');
+    showToast('Urządzenie "' + d.name + '" na mapie.');
   }
 
   function render(devices){
@@ -189,10 +191,6 @@ if (mapEl && window.L) {
       if (d) focusDevice(d);
     }).catch(function(){});
   });
-
-  setTimeout(function(){
-    showToast("Agent Śledź melduje gotowość. Jaki obiekt bierzemy dziś na celownik?");
-  }, 1200);
 }
 })();
 `

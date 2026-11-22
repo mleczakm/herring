@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 410" fill="none">
+  <title>Schemat Zatoki Gdańskiej z przykładowym śladem między Gdynią a Helem</title>
+  <defs>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" stroke="#75999a" stroke-opacity=".26"/>
+      <path d="M22 24h4m-2-2v4" stroke="#75999a" stroke-opacity=".28"/>
+    </pattern>
+    <pattern id="land" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(32)">
+      <rect width="7" height="7" fill="#294448"/><path d="M0 0v7" stroke="#476367" stroke-width="1.2"/>
+    </pattern>
+    <path id="shore" d="M-30-18H87C108 5 129 21 156 27s52 14 76 29l64 45c17 11 34 19 51 33l24 18q9 10-1 12c-9 1-16-7-24-9-18-7-32-26-51-35l-35-21c-20-10-34-24-58-29l-45-17c-15-7-27-6-40-15-11-7-18-3-23 8-6 13-17 17-16 29s16 23 10 38c-3 11-11 16-9 30l10 29 19 20 7 19 17 11-1 10-16-5 7 10 14 1 15 19 8 26 17 12c10 12 8 29 20 42 21 21 38 26 63 30l20 5 14-5 16-9 16 4 12 12 35 6c31 3 58-8 84-11 49-7 80-23 119-24l106-26v112H-30Z"/>
+  </defs>
+  <rect width="640" height="410" fill="#152e33"/>
+  <!-- Successive shoreline contours give the schematic its nautical-chart texture. -->
+  <g stroke="#54787a" stroke-linejoin="round">
+    <use href="#shore" stroke-width="138" opacity=".14"/><use href="#shore" stroke="#152e33" stroke-width="136"/>
+    <use href="#shore" stroke-width="98" opacity=".24"/><use href="#shore" stroke="#152e33" stroke-width="96"/>
+    <use href="#shore" stroke-width="66" opacity=".32"/><use href="#shore" stroke="#152e33" stroke-width="64"/>
+    <use href="#shore" stroke-width="40" opacity=".42"/><use href="#shore" stroke="#152e33" stroke-width="38"/>
+    <use href="#shore" stroke-width="19" opacity=".48"/><use href="#shore" stroke="#152e33" stroke-width="17"/>
+    <use href="#shore" fill="url(#land)" stroke="#719091" stroke-width="1.5"/>
+  </g>
+  <rect width="640" height="410" fill="url(#grid)"/>
+  <g font-family="monospace" fill="#d2dfda" font-size="13" letter-spacing="1.6">
+    <text x="29" y="208">GDYNIA</text><text x="93" y="351">GDAŃSK</text><text x="339" y="126">HEL</text>
+    <text x="365" y="303" fill="#a0bab9" letter-spacing="3">ZATOKA GDAŃSKA</text>
+  </g>
+  <g stroke="#ff835b" stroke-linejoin="round">
+    <path d="m121 219 42 14 40-4 37 11 36-6 25-24 39-10 21-24 31-8" stroke-width="3.6"/>
+    <g fill="#172e31" stroke-width="2"><circle cx="121" cy="219" r="5"/><circle cx="203" cy="229" r="3"/><circle cx="276" cy="234" r="3"/><circle cx="340" cy="200" r="3"/></g>
+    <circle cx="392" cy="168" r="36" fill="#ff835b" fill-opacity=".055" stroke-opacity=".32"/>
+    <circle cx="392" cy="168" r="22" fill="#ff835b" fill-opacity=".1" stroke-opacity=".65"/>
+    <circle cx="392" cy="168" r="7" fill="#ff835b" stroke="#ffdfc6" stroke-width="2"/>
+    <path d="m410 151 23-22h15" stroke-opacity=".8"/>
+  </g>
+  <rect x="448" y="114" width="89" height="30" rx="5" fill="#ff835b"/>
+  <text x="492" y="134" fill="#172e31" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="14" letter-spacing="1">ST-901</text>
+  <g transform="translate(588 45)" stroke="#c9dad4"><path d="m0-12-5 18 5-3 5 3z"/><path d="M0-11V3" stroke-width="2"/></g>
+  <text x="588" y="24" text-anchor="middle" font-family="monospace" font-size="11" fill="#c9dad4">N</text>
+</svg>

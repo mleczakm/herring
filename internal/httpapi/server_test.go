@@ -24,14 +24,29 @@ func testServer(t *testing.T, token string) (*Server, *sqlite.Store) {
 	t.Cleanup(func() { _ = store.Close() })
 	return New(store, nil, Config{SetupToken: token}, slog.New(slog.NewTextHandler(io.Discard, nil))), store
 }
-func TestHomeRedirectsToFirstRunSetup(t *testing.T) {
-	server, _ := testServer(t, "")
-	w := httptest.NewRecorder()
-	server.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
-	if w.Code != 303 || w.Header().Get("Location") != "/setup" {
-		t.Fatalf("response %d %q", w.Code, w.Header().Get("Location"))
+func TestLandingEntryPoints(t *testing.T) {
+	server, store := testServer(t, "")
+	handler := server.Handler()
+	checkPage := func(path, token, want string) {
+		t.Helper()
+		r := httptest.NewRequest("GET", path, nil)
+		if token != "" {
+			r.AddCookie(&http.Cookie{Name: "herring_session", Value: token})
+		}
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), want) {
+			t.Errorf("GET %s returned %d, expected page containing %q", path, w.Code, want)
+		}
 	}
+	checkPage("/", "", `href="/setup"`)
+	token := loginSession(t, store)
+	checkPage("/", "", `href="/login"`)
+	checkPage("/", "expired-session", `href="/login"`)
+	checkPage("/", token, `id="device-panel"`)
+	checkPage("/o-projekcie", token, "Otwórz mapę")
 }
+
 func TestSetupRequiresTokenAndCreatesHashedAdmin(t *testing.T) {
 	server, store := testServer(t, "correct")
 	form := validSetupForm()
