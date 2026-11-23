@@ -1,7 +1,7 @@
 {{define "landing"}}<!doctype html>
 <html lang="pl"><head>{{template "head"}}
-<title>Śledź · Prywatna mapa Twojego auta</title>
-<meta name="description" content="Śledź pokazuje, gdzie jest Twoje auto, i daje znać, gdy ruszy. Prywatność na pierwszym miejscu: dane w Unii Europejskiej, a w trybie prywatnym tylko na Twoim telefonie.">
+<title>Śledź · Prywatna mapa i powiadomienia dla SinoTrack ST-901</title>
+<meta name="description" content="Zachowaj swój lokalizator SinoTrack ST-901. Sprawdzaj auto na mapie, włącz powiadomienia o powrocie do domu i zdecyduj, gdzie zostaje historia przejazdów.">
 </head><body class="public-page landing">
 <header class="mast"><div class="wrap mast-inner">
   <a class="brand" href="/o-projekcie">{{template "wordmark"}}</a>
@@ -10,12 +10,12 @@
 <section class="sea-hero" aria-labelledby="hero-title">
   <div class="wrap sea-hero-inner">
     <div class="hero-copy">
-      <p class="kicker">{{template "icon-crosshair"}} Prywatność na pierwszym miejscu</p>
-      <h1 id="hero-title">Wiesz, gdzie jest auto<br><em>Nikt poza Tobą</em></h1>
-      <p class="intro">Śledź to polska aplikacja do Twojego lokalizatora GPS. Pokazuje auto na mapie i daje znać, gdy ruszy. Pozycje nie trafiają do Chin, tylko na serwer w Unii Europejskiej. A jeśli chcesz, zostają wyłącznie na Twoim telefonie.</p>
-      <div class="actions"><a class="btn btn-signal" href="{{.EntryURL}}">{{.EntryLabel}}</a><a class="code-link" href="#porownanie">Czym różni się od aplikacji producenta</a></div>
+      <p class="kicker">{{template "icon-crosshair"}} Prywatna mapa dla SinoTrack ST-901</p>
+      <h1 id="hero-title">Auto wróciło?<br><em>Śledź da znać</em></h1>
+      <p class="intro">Zaznacz dom na mapie, a dostaniesz wiadomość na telefon, gdy auto wróci. Twój SinoTrack wyśle pozycje na serwer Śledzia w Finlandii. Historię możesz zachować tam lub przenieść do jednej wybranej przeglądarki.</p>
+      <div class="actions"><a class="btn btn-signal" href="{{.EntryURL}}">{{.EntryLabel}}</a><a class="code-link" href="#porownanie">Porównaj z aplikacją SinoTrack</a></div>
       <ul class="hero-proof" aria-label="Najważniejsze cechy">
-        <li>Dane w Unii Europejskiej</li><li>Tryb prywatny</li><li>Ty decydujesz, jak długo</li><li>Otwarty kod</li>
+        <li>ST-901 2G i 4G</li><li>Telefon i komputer</li><li>Serwer w UE</li>
       </ul>
     </div>
     <figure class="hero-art">
@@ -27,63 +27,58 @@
 </section>
 <main>
   <section class="wrap compare" id="porownanie" aria-labelledby="compare-title">
-    <p class="kicker">Ten sam lokalizator, ta sama karta SIM</p>
-    <h2 id="compare-title">Inna droga Twoich danych</h2>
-    <p class="section-intro">Lokalizator SinoTrack prosto z pudełka wysyła pozycje do aplikacji producenta, na serwery w Chinach. Wystarczy kilka SMS-ów, żeby wysyłał je do Śledzia, a Śledź wyśle je za Ciebie. Nie musisz kupować nowego urządzenia.</p>
+    <h2 id="compare-title">Zmień aplikację, zachowaj lokalizator</h2>
+    <p class="section-intro">Twój ST-901 i jego karta SIM zostają w aucie. Śledź wyśle do urządzenia SMS-y z nowymi ustawieniami. Po przełączeniu lokalizatora kolejne pozycje zobaczysz na mapie w Śledziu.</p>
     <table class="compare-table">
       <thead><tr><th scope="col"><span class="visually-hidden">Cecha</span></th><th scope="col">Aplikacja producenta</th><th scope="col" class="ours">Śledź</th></tr></thead>
       <tbody>
-        <tr><th scope="row">Gdzie trafiają pozycje</th><td data-label="Aplikacja producenta">Na serwery w Chinach</td><td data-label="Śledź" class="ours">Na serwer w Unii Europejskiej</td></tr>
-        <tr><th scope="row">Kto ogląda historię</th><td data-label="Aplikacja producenta">Ty i operator zagranicznej usługi</td><td data-label="Śledź" class="ours">Tylko Ty, a w trybie prywatnym tylko Twój telefon</td></tr>
-        <tr><th scope="row">Jak długo jest przechowywana</th><td data-label="Aplikacja producenta">Decyduje producent</td><td data-label="Śledź" class="ours">Ty ustawiasz liczbę dni, osobno dla serwera i telefonu</td></tr>
-        <tr><th scope="row">Powiadomienia</th><td data-label="Aplikacja producenta">Ogólne alarmy urządzenia</td><td data-label="Śledź" class="ours">O Twoich miejscach, prostym językiem, czasem z humorem</td></tr>
-        <tr><th scope="row">Kod aplikacji</th><td data-label="Aplikacja producenta">Zamknięty</td><td data-label="Śledź" class="ours">Otwarty, każdy może go sprawdzić</td></tr>
+        <tr><th scope="row">Dokąd trafia pozycja auta?</th><td data-label="Aplikacja producenta">Do systemu producenta z Chin</td><td data-label="Śledź" class="ours">Na serwer śledź.mleczki.pl w Finlandii</td></tr>
+        <tr><th scope="row">Jak długo zostaje historia?</th><td data-label="Aplikacja producenta">Producent gwarantuje dostęp do historii z ostatnich 3 miesięcy. <a href="https://sinotrack.com/HomePage/Privacy_en.html" hreflang="en">Zasady SinoTrack (po angielsku)</a></td><td data-label="Śledź" class="ours">Wybierasz liczbę dni, osobno dla serwera i swojej przeglądarki</td></tr>
+        <tr><th scope="row">Jakie wiadomości mogę dostać?</th><td data-label="Aplikacja producenta">Alarmy lokalizatora, m.in. o prędkości i opuszczeniu strefy</td><td data-label="Śledź" class="ours">Wiadomość o wyjeździe z zapisanego miejsca, przekroczeniu Twojego limitu lub zbyt długiej przerwie w sygnale</td></tr>
       </tbody>
     </table>
   </section>
   <section class="privacy-band" id="prywatnosc" aria-labelledby="privacy-title">
     <div class="wrap">
-      <p class="kicker">Prywatność na pierwszym miejscu</p>
-      <h2 id="privacy-title">Śledź śledzi auto, nie Ciebie</h2>
+      <h2 id="privacy-title">Gdzie zostaje historia Twoich przejazdów?</h2>
       <div class="privacy-grid">
-        <article><span class="feature-icon">{{template "icon-geofence"}}</span><h3>Historia tylko na Twoim telefonie</h3><p>Włącz tryb prywatny w zainstalowanej aplikacji. Serwer przekazuje każdą pozycję Twojemu urządzeniu i od razu ją usuwa. Na innych urządzeniach widać tylko listę lokalizatorów.</p></article>
-        <article><span class="feature-icon">{{template "icon-map"}}</span><h3>Dane w Unii Europejskiej</h3><p>Śledź to polska usługa. Serwer działa w Finlandii, w Unii Europejskiej, więc Twoje dane chronią europejskie przepisy.</p></article>
-        <article><span class="feature-icon">{{template "icon-clock"}}</span><h3>Ty ustalasz, jak długo</h3><p>Wybierz, po ilu dniach stare pozycje znikają z serwera, a po ilu z telefonu. Tydzień, rok albo bez limitu.</p></article>
-        <article><span class="feature-icon">{{template "icon-crosshair"}}</span><h3>Bez reklam i liczników</h3><p>Strona nie śledzi odwiedzających i nie wyświetla reklam. Kod aplikacji jest otwarty, więc każdy może sprawdzić, co robi.</p></article>
+        <article><span class="feature-icon">{{template "icon-map"}}</span><h3>Na serwerze w Finlandii</h3><p>Tak działa Śledź na początek. Otwórz mapę na telefonie albo zaloguj się na komputerze, żeby sprawdzić ostatnią pozycję auta.</p></article>
+        <article><span class="feature-icon">{{template "icon-geofence"}}</span><h3>W jednej przeglądarce</h3><p>Włącz tryb prywatny w aplikacji zainstalowanej na telefonie lub komputerze. Gdy ją otworzysz, pobierze odczyty. Po potwierdzeniu zapisu serwer usunie swoją kopię.</p></article>
+        <article><span class="feature-icon">{{template "icon-clock"}}</span><h3>Tyle dni, ile potrzebujesz</h3><p>Wystarczy Ci ostatni tydzień? Ustaw 7 dni, a starsze pozycje znikną automatycznie. Dla historii na swoim urządzeniu możesz wybrać dłuższy okres.</p></article>
+        <article><span class="feature-icon">{{template "icon-crosshair"}}</span><h3>Mapa bez reklam</h3><p>Śledź nie wyświetla reklam ani nie mierzy Twoich kliknięć. Możesz zajrzeć do otwartego kodu i sprawdzić, jak aplikacja korzysta z danych.</p></article>
       </div>
     </div>
   </section>
   <section class="wrap how" aria-labelledby="how-title">
-    <p class="kicker">Trzy kroki</p>
-    <h2 id="how-title">Jak zacząć</h2>
+    <h2 id="how-title">Od numeru karty SIM do pierwszej pozycji</h2>
     <ol class="how-steps">
-      <li><h3>Dodaj lokalizator</h3><p>Podaj numer karty SIM z lokalizatora. Śledź sam wyśle mu ustawienia SMS-em i sprawdzi, czy je przyjął.</p></li>
-      <li><h3>Zainstaluj aplikację</h3><p>W przeglądarce na telefonie lub komputerze wybierz „Dodaj do ekranu początkowego” albo „Zainstaluj aplikację”.</p></li>
-      <li><h3>Zdecyduj, co zostaje u Ciebie</h3><p>Włącz tryb prywatny i ustaw, po ilu dniach stara historia ma znikać.</p></li>
+      <li><h3>Przygotuj numer karty SIM</h3><p>Sprawdź numer telefonu karty w lokalizatorze i wariant swojego ST-901. Administrator będzie też potrzebował identyfikatora z etykiety urządzenia.</p></li>
+      <li><h3>Dodaj auto w panelu</h3><p>Wybierz model, wpisz numer i nadaj autu nazwę. Śledź sam wyśle ustawienia SMS-em i sprawdzi, czy lokalizator je przyjął.</p></li>
+      <li><h3>Otwórz mapę</h3><p>Po pierwszym odczycie GPS zobaczysz pozycję auta. Teraz możesz zapisać dom na mapie i ustawić wiadomość o powrocie.</p></li>
     </ol>
   </section>
   <section class="alerts-band" id="powiadomienia" aria-labelledby="alert-title">
     <div class="wrap alerts-inner">
       <div>
-        <p class="kicker">Inteligentne powiadomienia</p>
-        <h2 id="alert-title">Śledź melduje, zanim zapytasz</h2>
-        <p>Zaznacz na mapie dom, pracę albo dom teściowej. Śledź sam podpowie miejsca, w których auto często stoi. Dostaniesz powiadomienie na telefon lub komputer, gdy auto przyjedzie, odjedzie albo pojedzie za szybko.</p>
-        <p>Lubisz z przymrużeniem oka? Włącz żarty, a Śledź doda coś od siebie. Żart nie zna nazw Twoich miejsc ani tras. W trybie prywatnym powiadomienia o trasie są wstrzymane.</p>
+        <h2 id="alert-title">Wybierz, kiedy Śledź ma dać znać</h2>
+        <p>Zapisz miejsce jako „Dom” lub „U teściowej” i wybierz przyjazd albo wyjazd. Gdy auto wjedzie w zaznaczony obszar lub z niego wyjedzie, Śledź napisze do Ciebie. Śledź sam podpowie Ci kolejne miejsca, w których często parkujesz.</p>
+        <p>Ustaw też prędkość, powyżej której chcesz dostać ostrzeżenie. Wiadomości mogą być rzeczowe albo z przymrużeniem oka. Ty wybierasz.</p>
+        <p>W trybie prywatnym podpowiedzi z historii oraz alerty o miejscach i prędkości są wstrzymane.</p>
       </div>
       <div class="phone" aria-label="Przykładowe powiadomienia">
         <div class="phone-notch" aria-hidden="true"></div>
-        <figure class="push"><figcaption>{{template "brand-mark"}} Śledź <time>teraz</time></figcaption><blockquote>Auto jest już poza miejscem „Teściowa”. Szykuj się, ktoś już jest w drodze!</blockquote></figure>
-        <figure class="push"><figcaption>{{template "brand-mark"}} Śledź <time>12 min temu</time></figcaption><blockquote>Auto jedzie 94 km/h i przekracza Twój limit. Pośpiech poniża!</blockquote></figure>
-        <figure class="push"><figcaption>{{template "brand-mark"}} Śledź <time>wczoraj</time></figcaption><blockquote>Auto jest już na miejscu „Dom”. Śledź melduje: cel na horyzoncie!</blockquote></figure>
+        <figure class="push"><figcaption>{{template "brand-mark"}} Śledź <time>teraz</time></figcaption><blockquote>Auto wyruszyło od teściowej. Szykuj się!</blockquote></figure>
+        <figure class="push"><figcaption>{{template "brand-mark"}} Śledź <time>12 min temu</time></figcaption><blockquote>94 km/h. Auto przekroczyło Twój limit. Pośpiech poniża!</blockquote></figure>
+        <figure class="push"><figcaption>{{template "brand-mark"}} Śledź <time>wczoraj</time></figcaption><blockquote>Auto dotarło do domu.</blockquote></figure>
       </div>
     </div>
   </section>
   <section class="wrap cta" aria-labelledby="cta-title">
-    <h2 id="cta-title">Przejmij ster nad swoimi danymi</h2>
+    <h2 id="cta-title">{{if eq .EntryURL "/setup"}}Podłącz swój pierwszy ST-901{{else}}Sprawdź, gdzie jest Twoje auto{{end}}</h2>
     <a class="btn btn-signal" href="{{.EntryURL}}">{{.EntryLabel}}</a>
   </section>
 </main>
-<footer class="site-foot"><div class="wrap"><a class="brand" href="/o-projekcie">{{template "wordmark"}}</a><span class="foot-note">Polska usługa · dane w Unii Europejskiej</span><a href="https://github.com/mleczakm/herring">Kod źródłowy</a></div></footer>
+<footer class="site-foot"><div class="wrap"><a class="brand" href="/o-projekcie">{{template "wordmark"}}</a><span class="foot-note">Polska aplikacja · serwer w Finlandii</span><a href="https://github.com/mleczakm/herring">Kod źródłowy</a></div></footer>
 </body></html>{{end}}
 
 {{define "auth-top"}}<header class="mast"><div class="wrap mast-inner">
