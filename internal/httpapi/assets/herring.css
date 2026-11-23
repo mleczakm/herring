@@ -335,3 +335,53 @@ label.check input{width:auto;margin:.2rem 0 0;flex-shrink:0}
 .unknown-trackers .chip{border:1px solid var(--border);background:#fff;border-radius:999px;padding:.2rem .65rem;font-size:.85rem;cursor:pointer;color:var(--ink)}
 .unknown-trackers .chip:hover{border-color:var(--action)}
 .add-device-panel{max-height:calc(100% - 6.4rem);overflow-y:auto}
+
+/* Route history */
+.history-panel{position:absolute;top:5.4rem;left:1rem;width:22rem;max-height:calc(100% - 6.6rem);border-radius:var(--radius-lg);z-index:20;display:flex;flex-direction:column;overflow:hidden}
+.history-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.9rem 1rem .6rem}
+.history-head h2{font-size:1.05rem;display:flex;align-items:center;gap:.5rem}
+.history-head h2 .icon{color:var(--action)}
+.history-collapse .icon{transition:transform .2s}
+.history-panel:not(.collapsed) .history-collapse .icon{transform:rotate(180deg)}
+.history-panel.collapsed .history-form,.history-panel.collapsed .history-legend,.history-panel.collapsed .history-stops{display:none!important}
+.history-panel.collapsed .history-status{margin-top:0}
+.history-body{overflow-y:auto;padding:0 1rem 1rem}
+.history-form>label:first-child{margin-top:0}
+.history-dates{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.history-dates input{min-width:0}
+.history-quick{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.7rem}
+.chip{border:1px solid var(--border);background:rgba(255,255,255,.7);color:var(--ink-soft);border-radius:999px;padding:.3rem .75rem;font-size:.82rem;font-weight:600;cursor:pointer}
+.chip:hover{border-color:var(--brass);color:var(--ink)}
+.history-status{margin:.9rem 0 0;font-size:.85rem;color:var(--ink-soft);display:flex;flex-direction:column;gap:.3rem}
+.history-status strong{font-family:var(--font-title);color:var(--ink)}
+.history-panel[aria-busy] .history-status{color:var(--ink-faint)}
+.history-stats{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:.8rem 0 0}
+.history-stats div{background:rgba(255,255,255,.7);border:1px solid var(--border);border-radius:var(--radius);padding:.5rem .7rem}
+.history-stats dt{font:600 .68rem/1.3 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
+.history-stats dd{margin:.15rem 0 0;font:700 1.1rem/1.2 var(--font-title);color:var(--ink)}
+.history-legend{display:flex;flex-wrap:wrap;gap:.4rem 1rem;margin:.7rem 0 0;font-size:.78rem;color:var(--ink-faint)}
+.legend-item{display:inline-flex;align-items:center;gap:.35rem}
+.legend-dot{width:.8rem;height:.8rem;border-radius:50%;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 1px var(--border)}
+.legend-dot.sms{background:var(--surface);border:3px solid var(--brass);box-shadow:none}
+.legend-dot.stop{background:var(--sea)}
+.history-stops{list-style:none;margin:.7rem 0 0;padding:0;display:flex;flex-direction:column;gap:.25rem}
+.history-stops button{width:100%;display:flex;align-items:center;gap:.6rem;border:1px solid transparent;background:transparent;border-radius:.6rem;padding:.4rem .5rem;font-size:.85rem;color:var(--ink-soft);cursor:pointer;text-align:left}
+.history-stops button:hover{background:rgba(255,255,255,.7);border-color:var(--border)}
+.stop-index{display:grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--sea);color:var(--moon);font:700 .72rem/1 var(--font-title);flex-shrink:0}
+.stop-duration{margin-left:auto;font-weight:600;color:var(--ink)}
+.route-flag{position:relative;display:block;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.route-flag.start{background:#267459}
+.route-flag.end{background:var(--action)}
+.route-flag span{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);white-space:nowrap;font:700 .7rem/1 var(--font-sans);color:#fff;background:inherit;padding:.22rem .45rem;border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.popup-body strong{color:var(--ink)}
+@media (max-width:768px){
+  .history-panel{top:4.6rem;left:.6rem;right:.6rem;width:auto;max-height:48vh}
+  .history-head{padding:.6rem .8rem .4rem}
+  .history-body{padding:0 .8rem .8rem}
+  .history-stats dd{font-size:1rem}
+  .history-form label{margin-top:.6rem}
+  .history-form input,.history-form select{padding:.5rem .7rem}
+  .history-quick{margin-top:.6rem}
+  .history-status{margin-top:.7rem}
+  .history-stats div{padding:.4rem .6rem}
+}

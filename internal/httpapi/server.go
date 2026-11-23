@@ -35,6 +35,7 @@ type Sender interface {
 type Store interface {
 	alertStore
 	pushStore
+	historyStore
 	SetupRequired(context.Context) (bool, error)
 	CreateInitialAdmin(context.Context, string, string, string) error
 	UserByEmail(context.Context, string) (sqlite.User, error)
@@ -116,6 +117,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /devices/{id}/delete", s.deleteDevice)
 	mux.HandleFunc("GET /assets/devices.js", s.asset("text/javascript; charset=utf-8", []byte(devicesJS)))
 	mux.HandleFunc("GET /api/positions", s.positions)
+	mux.HandleFunc("GET /historia", s.showHistory)
+	mux.HandleFunc("GET /api/history", s.history)
+	mux.HandleFunc("GET /assets/history.js", s.asset("text/javascript; charset=utf-8", historyJS))
 	mux.HandleFunc("POST /api/devices/{id}/locate", s.locate)
 	mux.HandleFunc("GET /ustawienia", s.showSettings)
 	mux.HandleFunc("POST /ustawienia", s.saveSettings)

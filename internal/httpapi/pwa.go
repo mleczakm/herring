@@ -30,20 +30,21 @@ const webManifest = `{
 // Bump CACHE whenever a precached asset changes. Assets are cache-first and
 // served as immutable, so a changed file also needs a new ?v= in its URL.
 const serviceWorkerJS = `"use strict";
-var CACHE = "sledz-shell-v4";
+var CACHE = "sledz-shell-v5";
 var ASSETS = [
-  "/assets/herring.css?v=4",
+  "/assets/herring.css?v=5",
   "/assets/herring.svg?v=2",
   "/assets/leaflet.css",
   "/assets/leaflet.js",
   "/assets/dashboard.js?v=5",
   "/assets/devices.js?v=1",
-  "/assets/privacy.js?v=2",
+  "/assets/privacy.js?v=3",
+  "/assets/history.js?v=1",
   "/assets/settings.js?v=1",
   "/assets/space-grotesk-latin.woff2",
   "/assets/space-grotesk-latin-ext.woff2"
 ];
-var PAGES = ["/", "/urzadzenia", "/ustawienia"];
+var PAGES = ["/", "/urzadzenia", "/historia", "/ustawienia"];
 
 self.addEventListener("install", function(event){
   event.waitUntil(caches.open(CACHE).then(function(cache){ return cache.addAll(ASSETS); }).then(function(){ return self.skipWaiting(); }));
@@ -284,6 +285,29 @@ function devices(){
   });
 }
 
+// route returns the stored positions of one tracker (by its dashboard ID)
+// with tracker time in [fromMs, toMs), oldest first, in the shape of
+// GET /api/history, plus the oldest position kept for that tracker.
+function route(deviceID, fromMs, toMs){
+  return db().then(function(d){
+    return request(d.transaction("devices").objectStore("devices").get(Number(deviceID))).then(function(device){
+      var result = {positions: [], oldest: null};
+      if (!device || !device.tracker_id) return result;
+      var tx = d.transaction("positions");
+      var index = tx.objectStore("positions").index("device_time");
+      var all = IDBKeyRange.bound([device.tracker_id, -Infinity], [device.tracker_id, Infinity]);
+      var range = IDBKeyRange.bound([device.tracker_id, fromMs], [device.tracker_id, toMs], false, true);
+      return Promise.all([request(index.getAll(range)), request(index.openCursor(all))]).then(function(values){
+        result.positions = values[0].map(function(p){
+          return {gps_valid: p.gps_valid, tracker_time: p.tracker_time, received_at: p.received_at, latitude: p.latitude, longitude: p.longitude, speed_kph: p.speed_kph, heading: p.heading, source: p.source || "gprs"};
+        });
+        result.oldest = values[1] ? values[1].value.tracker_time : null;
+        return result;
+      });
+    });
+  });
+}
+
 function stats(){
   return db().then(function(d){
     var tx = d.transaction(["positions", "meta"]);
@@ -313,6 +337,6 @@ function wipe(){
   });
 }
 
-window.HerringPrivacy = {installed: installed, enable: enable, disable: disable, sync: sync, devices: devices, stats: stats, wipe: wipe};
+window.HerringPrivacy = {installed: installed, enable: enable, disable: disable, sync: sync, devices: devices, route: route, stats: stats, wipe: wipe};
 })();
 `

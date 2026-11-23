@@ -34,6 +34,7 @@ transferred to the device and deleted from the server.
 | Server copy of a position | Until server retention removes it | Until the bound browser acknowledges it, or server retention removes it first |
 | Map in other browsers and sessions | Positions shown | Tracker list only, no positions |
 | Map in the bound browser | From the server | From local storage, also offline |
+| Route history (**Historia tras**) | `GET /api/history`, in any signed-in browser | Read from IndexedDB in the bound browser only; `GET /api/history` answers 409 `privacy_mode` |
 | Place and speed alerts, place suggestions | Active | Paused; alert state resets when the mode changes, so movement during privacy mode triggers no late alerts |
 | Offline alerts and positions by SMS | Active | Active; they carry no location, but an SMS position passes through the mobile operator and the SMS gateway ([details](offline-and-sms.md)) |
 
@@ -49,8 +50,8 @@ trackers and link incoming data.
 - Binding: the browser generates a random 256-bit secret, keeps it in
   IndexedDB, and sends it once to `POST /api/privacy/enable`. The server stores
   only its SHA-256 hash. Binding another browser replaces the previous binding.
-- Every five seconds while the dashboard is open, and whenever the settings page
-  opens, the browser calls `GET /api/privacy/sync` with the secret in the
+- Every five seconds while the dashboard is open, and whenever the settings or
+  route history page opens or loads a route, the browser calls `GET /api/privacy/sync` with the secret in the
   `X-Herring-Client` header. The response holds at most 500 positions, oldest
   first.
 - The browser writes the batch to IndexedDB. Only after that transaction

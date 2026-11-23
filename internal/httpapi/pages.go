@@ -10,7 +10,7 @@ var publicPages string
 // CDN at runtime, so the strict CSP in securityHeaders never needs to trust a
 // third party for script execution — only map tile images are cross-origin.
 const pages = `
-{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0e3332"><link rel="icon" href="/assets/herring.svg?v=2" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=2"><link rel="stylesheet" href="/assets/herring.css?v=4">{{end}}
+{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0e3332"><link rel="icon" href="/assets/herring.svg?v=2" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=2"><link rel="stylesheet" href="/assets/herring.css?v=5">{{end}}
 
 
 
@@ -38,7 +38,7 @@ const pages = `
     <nav class="sidebar-nav"><ul>
       <li><a class="nav-link{{if eq .Active "map"}} active{{end}}" href="/">{{template "icon-map"}}<span>Mapa na żywo</span></a></li>
       <li><a class="nav-link{{if eq .Active "devices"}} active{{end}}" href="/urzadzenia">{{template "icon-crosshair"}}<span>Urządzenia</span></a></li>
-      <li><span class="nav-link planned">{{template "icon-path"}}<span>Historia Tras</span><span class="soon">wkrótce</span></span></li>
+      <li><a class="nav-link{{if eq .Active "history"}} active{{end}}" href="/historia">{{template "icon-path"}}<span>Historia tras</span></a></li>
       <li><a class="nav-link" href="/powiadomienia">{{template "icon-bell"}}<span>Miejsca i powiadomienia</span></a></li>
       <li><a class="nav-link{{if eq .Active "settings"}} active{{end}}" href="/ustawienia">{{template "icon-gear"}}<span>Ustawienia</span>{{if .Privacy}}<span class="badge-private">prywatny</span>{{end}}</a></li>
     </ul></nav>
@@ -83,7 +83,7 @@ const pages = `
   </main>
 </div>
 <script src="/assets/leaflet.js"></script>
-<script src="/assets/privacy.js?v=2"></script>
+<script src="/assets/privacy.js?v=3"></script>
 <script src="/assets/dashboard.js?v=5"></script>
 </body></html>{{end}}
 
@@ -196,7 +196,55 @@ const pages = `
     </div>
   </main>
 </div>
-<script src="/assets/privacy.js?v=2"></script>
+<script src="/assets/privacy.js?v=3"></script>
 <script src="/assets/settings.js?v=1"></script>
+</body></html>{{end}}
+
+{{define "history"}}<!doctype html><html lang="pl"><head><title>Historia tras · Śledź</title><link rel="stylesheet" href="/assets/leaflet.css">{{template "head"}}</head><body{{if .Privacy}} data-privacy="local"{{end}}>
+<div class="app">
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  {{template "sidebar" .}}
+  <main class="content">
+    <header class="topbar">
+      <button class="btn-icon menu-toggle glass" id="menu-toggle" aria-controls="sidebar" aria-expanded="false" aria-label="Menu nawigacji" type="button">{{template "icon-list"}}</button>
+      <h1 class="map-title">{{template "icon-path"}} Historia tras</h1>
+    </header>
+    <div id="map"></div>
+    <section class="history-panel glass" id="history-panel" aria-labelledby="history-title" data-retention-days="{{.RetentionDays}}">
+      <div class="history-head">
+        <h2 id="history-title">{{template "icon-clock"}}Wybierz urządzenie i dzień</h2>
+        <button class="btn-icon history-collapse" id="history-collapse" type="button" aria-controls="history-form" aria-expanded="true" aria-label="Zwiń formularz">{{template "icon-caret"}}</button>
+      </div>
+      <div class="history-body" id="history-body">
+        {{if not .Devices}}<div class="empty-state">{{template "brand-mark"}}<strong>Brak lokalizatorów</strong><p>Dodaj lokalizator na mapie na żywo. Jego trasy pojawią się tutaj.</p></div>
+        {{else}}<form class="history-form" id="history-form">
+          <label>Urządzenie<select name="device" id="history-device">{{range .Devices}}<option value="{{.ID}}"{{if .TrackerID}} data-tracked{{end}}>{{if .Name}}{{.Name}}{{else}}{{.PhoneNumber}}{{end}}</option>{{end}}</select></label>
+          <div class="history-dates">
+            <label>Od<input type="date" name="from" id="history-from" required></label>
+            <label>Do<input type="date" name="to" id="history-to" required></label>
+          </div>
+          <div class="history-quick" role="group" aria-label="Szybki wybór dnia">
+            <button class="chip" type="button" data-days="0">Dziś</button>
+            <button class="chip" type="button" data-days="1">Wczoraj</button>
+            <button class="chip" type="button" data-days="7">Ostatnie 7 dni</button>
+          </div>
+        </form>
+        <p class="history-status" id="history-status" role="status" aria-live="polite"></p>
+        <dl class="history-stats" id="history-stats" hidden>
+          <div><dt>Dystans</dt><dd id="stat-distance">—</dd></div>
+          <div><dt>Czas jazdy</dt><dd id="stat-driving">—</dd></div>
+          <div><dt>Postoje</dt><dd id="stat-stops">—</dd></div>
+          <div><dt>Maks. prędkość</dt><dd id="stat-speed">—</dd></div>
+        </dl>
+        <p class="history-legend" id="history-legend" hidden><span class="legend-item sms"><span class="legend-dot sms"></span>Pozycja z SMS-a</span><span class="legend-item stop"><span class="legend-dot stop"></span>Postój</span></p>
+        <ol class="history-stops" id="history-stops" hidden></ol>
+        {{end}}
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/assets/leaflet.js"></script>
+<script src="/assets/privacy.js?v=3"></script>
+<script src="/assets/history.js?v=1"></script>
 </body></html>{{end}}
 `

@@ -8,7 +8,8 @@ device family is SinoTrack ST-90x, starting with ST-901.
 The project is at an early stage. The initial milestone covers:
 
 - receiving ST-901 positions over TCP;
-- displaying the latest position and history;
+- displaying the latest position and route history (distance, driving time,
+  stops, top speed);
 - configuring a tracker through Sendly SMS;
 - ingesting tracker SMS replies through a Sendly webhook;
 - saved places, frequent-stop suggestions, and opt-in arrival, departure, and speed alerts;
