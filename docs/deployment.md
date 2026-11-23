@@ -21,8 +21,9 @@ Create the `production` environment and configure the same secrets as Cargo:
 - `CYTRUS_IPV4`, `CYTRUS_API_TOKEN`;
 - `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`;
 - `DOTENV` — production environment file content; initially it must contain
-  `HERRING_DEVICE_IDS=<comma-separated tracker identifiers>` and a long random
-  `HERRING_SETUP_TOKEN=<one-time setup secret>`;
+  a long random `HERRING_SETUP_TOKEN=<one-time setup secret>`. Tracker IDs are
+  added in the UI (see [Adding a tracker](adding-a-tracker.md)); the optional
+  `HERRING_DEVICE_IDS=<comma-separated tracker identifiers>` still works;
 - `TRACKER_PUBLIC_PORT` — the host TCP port assigned/routed to this Mikrus VPS.
 
 After the secrets, Cytrus domain, raw TCP port, and first backup are ready, set

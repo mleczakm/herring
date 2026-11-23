@@ -36,9 +36,10 @@ Override them with `HERRING_HTTP_ADDR` and `HERRING_TRACKER_ADDR`. The HTTP
 health probe is `GET /healthz`.
 
 Positions are stored in SQLite at `herring.db`. Set `HERRING_DATABASE_PATH` to
-change the location and provide a comma-separated allowlist of tracker IDs in
-`HERRING_DEVICE_IDS`; frames from other IDs are rejected by the database
-foreign-key boundary.
+change the location. Only registered tracker IDs may send positions; frames
+from other IDs are rejected by the database foreign-key boundary. IDs are
+registered when a tracker is added in the UI, or at startup from the optional
+comma-separated `HERRING_DEVICE_IDS`.
 
 Open [the local app](http://localhost:8080/) for the Polish introduction and
 installation entry point. On a new database, **Zacznij konfigurację** opens
@@ -53,8 +54,10 @@ uses the installation profile to send the control number, APN, TCP endpoint,
 reporting intervals, GPRS mode and a final `RCONF` query through Sendly. The UI
 shows the live state and only reports **configured** after the tracker's inbound
 reply matches the expected APN and endpoint—not merely after Sendly accepts or
-delivers the outgoing messages. Its tracker ID must also be listed in
-`HERRING_DEVICE_IDS`, or its positions are rejected. See
+delivers the outgoing messages. Its tracker ID is entered in the same form, or
+picked later from recently rejected IDs; until then its positions are
+rejected. The **Urządzenia** page renames trackers, resends the configuration
+and removes trackers. See
 [Adding a tracker](docs/adding-a-tracker.md) for the full procedure and
 troubleshooting.
 

@@ -44,7 +44,6 @@ if (menuToggle) menuToggle.addEventListener("click", function(){
   menuToggle.setAttribute("aria-expanded", String(sidebar.classList.contains("open")));
 });
 if (backdrop) backdrop.addEventListener("click", closeSidebar);
-sidebar.querySelector('a[href="#device-search"]').addEventListener("click", closeSidebar);
 
 // --- User menu ---
 var userToggle = document.getElementById("user-menu-toggle");
@@ -61,6 +60,16 @@ var openAdd = document.getElementById("open-add-device");
 var closeAdd = document.getElementById("close-add-device");
 if (openAdd) openAdd.addEventListener("click", function(){ addPanel.classList.add("open"); });
 if (closeAdd) closeAdd.addEventListener("click", function(){ addPanel.classList.remove("open"); });
+// /#dodaj (linked from the devices page) opens the form straight away.
+if (addPanel && window.location.hash === "#dodaj") addPanel.classList.add("open");
+// Picking a recently rejected tracker fills in its ID; the admin still submits.
+var trackerInput = document.getElementById("add-tracker-id");
+if (addPanel && trackerInput) addPanel.addEventListener("click", function(e){
+  var chip = e.target.closest && e.target.closest("[data-tracker-id]");
+  if (!chip) return;
+  trackerInput.value = chip.getAttribute("data-tracker-id");
+  trackerInput.focus();
+});
 
 // --- Agent Śledź toast ---
 var toast = document.getElementById("agent-toast");

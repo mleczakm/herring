@@ -203,14 +203,9 @@ func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
 	return err
 }
 
+// CreateManagedDevice adds a device whose tracker ID is not known yet.
 func (s *Store) CreateManagedDevice(ctx context.Context, name, model, phone string) (ManagedDevice, error) {
-	now := time.Now()
-	result, err := s.database.ExecContext(ctx, `INSERT INTO managed_devices(name,model,phone_number,config_status,config_started_at) VALUES(?,?,?,'sending',?)`, strings.TrimSpace(name), model, phone, formatTime(now))
-	if err != nil {
-		return ManagedDevice{}, fmt.Errorf("create managed device: %w", err)
-	}
-	id, _ := result.LastInsertId()
-	return ManagedDevice{ID: id, Name: strings.TrimSpace(name), Model: model, PhoneNumber: phone, ConfigStatus: "sending", ConfigStartedAt: now}, nil
+	return s.CreateManagedDeviceWithTracker(ctx, name, model, phone, "")
 }
 
 func (s *Store) ManagedDevices(ctx context.Context) ([]ManagedDevice, error) {
@@ -257,9 +252,10 @@ func scanManaged(row scanner) (ManagedDevice, error) {
 // when exactly one managed device is still awaiting a tracker link, since a
 // phone-number-only setup has no other way to tell trackers apart.
 //
-// Only identifiers registered through HERRING_DEVICE_IDS are linked. The TCP
-// port is public, so an unknown sender must never claim a pending device:
-// its positions are rejected anyway and the link would hide the real tracker.
+// Only registered identifiers (from HERRING_DEVICE_IDS, or assigned to a
+// device by the administrator) are linked. The TCP port is public, so an
+// unknown sender must never claim a pending device: its positions are
+// rejected anyway and the link would hide the real tracker.
 func (s *Store) LinkTrackerIfUnambiguous(ctx context.Context, deviceID string) error {
 	_, err := s.database.ExecContext(ctx, `
         UPDATE managed_devices SET tracker_id=?
@@ -367,7 +363,8 @@ func (s *Store) RegisterDevice(ctx context.Context, deviceID string) error {
 }
 
 // SaveLocation persists a validated position. The foreign key intentionally
-// rejects identifiers that have not been registered.
+// rejects identifiers that have not been registered; that case is reported as
+// ErrUnknownTracker.
 func (s *Store) SaveLocation(ctx context.Context, receivedAt time.Time, location sinotrack.Location) error {
 	_, err := s.database.ExecContext(ctx, `
         INSERT INTO positions (
@@ -389,6 +386,9 @@ func (s *Store) SaveLocation(ctx context.Context, receivedAt time.Time, location
 		location.Raw,
 	)
 	if err != nil {
+		if registered, checkErr := s.trackerRegistered(ctx, location.DeviceID); checkErr == nil && !registered {
+			return fmt.Errorf("save location for device %s: %w", location.DeviceID, ErrUnknownTracker)
+		}
 		return fmt.Errorf("save location for device %s: %w", location.DeviceID, err)
 	}
 	return nil
@@ -402,6 +402,7 @@ func (s *Store) initialize(ctx context.Context) error {
 		"PRAGMA busy_timeout = 5000",
 		schema,
 		alertsSchema,
+		unknownTrackersSchema,
 	} {
 		if _, err := s.database.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("initialize SQLite: %w", err)

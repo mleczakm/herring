@@ -10,7 +10,7 @@ var publicPages string
 // CDN at runtime, so the strict CSP in securityHeaders never needs to trust a
 // third party for script execution — only map tile images are cross-origin.
 const pages = `
-{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0e3332"><link rel="icon" href="/assets/herring.svg?v=2" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=2"><link rel="stylesheet" href="/assets/herring.css?v=3">{{end}}
+{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0e3332"><link rel="icon" href="/assets/herring.svg?v=2" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=2"><link rel="stylesheet" href="/assets/herring.css?v=4">{{end}}
 
 
 
@@ -37,7 +37,7 @@ const pages = `
     <a class="sidebar-brand" href="/o-projekcie">{{template "brand-mark"}}<div><span class="wordmark">Śledź</span><small>Panel lokalizacji</small></div></a>
     <nav class="sidebar-nav"><ul>
       <li><a class="nav-link{{if eq .Active "map"}} active{{end}}" href="/">{{template "icon-map"}}<span>Mapa na żywo</span></a></li>
-      <li><a class="nav-link" href="{{if eq .Active "map"}}#device-search{{else}}/{{end}}">{{template "icon-crosshair"}}<span>Urządzenia</span></a></li>
+      <li><a class="nav-link{{if eq .Active "devices"}} active{{end}}" href="/urzadzenia">{{template "icon-crosshair"}}<span>Urządzenia</span></a></li>
       <li><span class="nav-link planned">{{template "icon-path"}}<span>Historia Tras</span><span class="soon">wkrótce</span></span></li>
       <li><a class="nav-link" href="/powiadomienia">{{template "icon-bell"}}<span>Miejsca i powiadomienia</span></a></li>
       <li><a class="nav-link{{if eq .Active "settings"}} active{{end}}" href="/ustawienia">{{template "icon-gear"}}<span>Ustawienia</span>{{if .Privacy}}<span class="badge-private">prywatny</span>{{end}}</a></li>
@@ -69,11 +69,11 @@ const pages = `
         {{else}}{{range .Devices}}<button type="button" class="device-item" data-id="{{.ID}}"><span class="device-avatar" style="background:var(--offline)">{{template "icon-crosshair"}}</span><span class="device-info"><strong>{{if .Name}}{{.Name}}{{else}}{{.PhoneNumber}}{{end}}</strong><span class="device-meta"><span data-role="summary">{{if eq .ConfigStatus "configured"}}Oczekiwanie na sygnał…{{else if eq .ConfigStatus "failed"}}⚠ Konfiguracja nieudana{{else}}⏳ Konfigurowanie…{{end}}</span></span></span></button>{{end}}
         {{end}}
       </div>
-      <div class="device-panel-foot"><button class="btn" id="open-add-device" type="button">{{template "icon-plus"}}Dodaj lokalizator</button></div>
+      <div class="device-panel-foot"><button class="btn" id="open-add-device" type="button">{{template "icon-plus"}}Dodaj lokalizator</button>{{if .Devices}}<a class="manage-link" href="/urzadzenia">Zmień nazwę, ponów konfigurację lub usuń</a>{{end}}</div>
     </section>
     <section class="add-device-panel glass" id="add-device-panel">
       <div class="add-device-panel-head"><h2>Dodaj lokalizator</h2><button class="btn-icon" id="close-add-device" aria-label="Zamknij formularz" type="button">{{template "icon-x"}}</button></div>
-      {{if .Ready}}<form method="post" action="/devices"><label>Wariant<select name="model"><option value="st901-2g">ST-901 2G</option><option value="st901-4g">ST-901 4G</option></select></label><label>Numer telefonu karty SIM<input name="phone" type="tel" placeholder="+48…" required></label><label>Nazwa (opcjonalnie)<input name="name"></label><button class="btn" type="submit">Dodaj i skonfiguruj przez SMS</button></form>{{else}}<p class="hint">Aby dodać lokalizator, poproś administratora o włączenie wysyłki SMS.</p>{{end}}
+      {{if .Ready}}<form method="post" action="/devices"><label>Wariant<select name="model"><option value="st901-2g">ST-901 2G</option><option value="st901-4g">ST-901 4G</option></select></label><label>Numer telefonu karty SIM<input name="phone" type="tel" placeholder="+48…" required></label><label>Nazwa (opcjonalnie)<input name="name" maxlength="80"></label><label>ID lokalizatora (opcjonalnie)<input name="tracker_id" id="add-tracker-id" inputmode="numeric" autocomplete="off" pattern="[0-9 ]{5,30}" list="unknown-trackers"></label><p class="hint">Znajdziesz je na naklejce lokalizatora, w polu ID. Bez niego Śledź nie przyjmie pozycji, dopóki nie wybierzesz go w „Urządzenia”.</p>{{template "unknown-picker" .Unknown}}<button class="btn" type="submit">Dodaj i skonfiguruj przez SMS</button></form>{{else}}<p class="hint">Aby dodać lokalizator, poproś administratora o włączenie wysyłki SMS.</p>{{end}}
     </section>
     <div class="toast glass" role="status" id="agent-toast">
       <span class="toast-avatar">{{template "brand-mark"}}</span>
@@ -84,7 +84,63 @@ const pages = `
 </div>
 <script src="/assets/leaflet.js"></script>
 <script src="/assets/privacy.js?v=2"></script>
-<script src="/assets/dashboard.js?v=4"></script>
+<script src="/assets/dashboard.js?v=5"></script>
+</body></html>{{end}}
+
+{{define "unknown-picker"}}{{if .}}<div class="unknown-trackers"><p class="hint">Te lokalizatory próbowały się ostatnio połączyć, ale Śledź ich nie zna. Wybierz swój tylko wtedy, gdy ID zgadza się z naklejką:</p><ul>{{range .}}<li><button type="button" class="chip" data-tracker-id="{{.ID}}">{{.ID}}</button><span>{{.LastSeen}}, {{.Attempts}}</span></li>{{end}}</ul></div>{{end}}<datalist id="unknown-trackers">{{range .}}<option value="{{.ID}}">{{.LastSeen}}</option>{{end}}</datalist>{{end}}
+
+{{define "devices"}}<!doctype html><html lang="pl"><head><title>Urządzenia · Śledź</title>{{template "head"}}</head><body{{if .Privacy}} data-privacy="local"{{end}}>
+<div class="app">
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  {{template "sidebar" .}}
+  <main class="content page">
+    <header class="page-head">
+      <button class="btn-icon menu-toggle" id="menu-toggle" aria-controls="sidebar" aria-expanded="false" aria-label="Menu nawigacji" type="button">{{template "icon-list"}}</button>
+      <h1>{{template "icon-crosshair"}} Urządzenia</h1>
+    </header>
+    <div class="page-body">
+      {{if .Notice}}<p class="notice" role="status">{{.Notice}}</p>{{end}}
+      {{if .Error}}<p class="notice alert" role="alert">{{.Error}}</p>{{end}}
+      {{if .Unknown}}<section class="card" id="nieznane" aria-labelledby="unknown-title">
+        <h2 id="unknown-title">Nieznane lokalizatory</h2>
+        <p>Te lokalizatory próbowały wysłać pozycję w ostatnim tygodniu, ale Śledź ich nie zna, więc odrzucił ich dane. Jeśli któryś to twój, wpisz jego ID przy urządzeniu poniżej.</p>
+        <dl class="facts">{{range .Unknown}}<div><dt><code>{{.ID}}</code></dt><dd>{{.LastSeen}}, {{.Attempts}}</dd></div>{{end}}</dl>
+        <p class="hint">Każdy może próbować połączyć się ze Śledziem, więc na tej liście może być cudzy lub przypadkowy numer. Wybieraj tylko ID, które widzisz na swoim lokalizatorze.</p>
+      </section>{{end}}
+      {{if not .Devices}}<section class="card"><h2>Brak urządzeń</h2><p>Nie masz jeszcze żadnego lokalizatora.</p><a class="btn" href="/#dodaj">Dodaj lokalizator</a></section>{{end}}
+      {{range .Devices}}<section class="card device-card" id="urzadzenie-{{.ID}}" aria-labelledby="device-{{.ID}}-title">
+        <h2 id="device-{{.ID}}-title">{{.Label}}</h2>
+        <dl class="facts">
+          <div><dt>Wariant</dt><dd>{{.ModelLabel}}</dd></div>
+          <div><dt>Numer karty SIM</dt><dd>+{{.PhoneNumber}}</dd></div>
+          <div><dt>ID lokalizatora</dt><dd>{{if .TrackerID}}<code>{{.TrackerID}}</code>{{else}}<span class="pill warn">Nieznane</span>{{end}}</dd></div>
+          <div><dt>Konfiguracja</dt><dd><span class="pill {{.StatusClass}}">{{.StatusLabel}}</span></dd></div>
+        </dl>
+        {{if .ConfigDetail}}<p class="hint">{{.ConfigDetail}}</p>{{end}}
+        <form method="post" action="/devices/{{.ID}}">
+          <h3>Nazwa i ID</h3>
+          <label>Nazwa<input name="name" value="{{.Name}}" maxlength="80" placeholder="+{{.PhoneNumber}}"></label>
+          <label>ID lokalizatora<input name="tracker_id" value="{{.TrackerID}}" inputmode="numeric" autocomplete="off" pattern="[0-9 ]{5,30}" list="unknown-trackers"></label>
+          {{if .TrackerID}}<p class="hint">Zmiana ID usuwa pozycje zapisane pod dotychczasowym ID.</p>{{else}}<p class="hint">Wpisz ID z naklejki lokalizatora, aby Śledź przyjmował jego pozycje.</p>{{end}}
+          <button class="btn" type="submit">Zapisz</button>
+        </form>
+        <form method="post" action="/devices/{{.ID}}/configure">
+          <h3>Konfiguracja przez SMS</h3>
+          <p class="hint">Wysyła ponownie wszystkie SMS-y z ustawieniami połączenia. Przydaje się, gdy konfiguracja się nie udała albo lokalizator był wyłączony. Każdy SMS kosztuje.</p>
+          <button class="btn secondary" type="submit"{{if not $.Ready}} disabled{{end}}>Wyślij ustawienia ponownie</button>
+        </form>
+        <form method="post" action="/devices/{{.ID}}/delete">
+          <h3>Usuwanie</h3>
+          <label class="check"><input type="checkbox" name="confirm" value="1" required><span>Rozumiem, że usunę też wszystkie pozycje tego urządzenia zapisane na serwerze. Tego nie da się cofnąć.</span></label>
+          <button class="btn danger" type="submit">Usuń urządzenie</button>
+        </form>
+      </section>{{end}}
+      {{if .Devices}}<p><a class="btn secondary" href="/#dodaj">{{template "icon-plus"}}Dodaj lokalizator</a></p>{{end}}
+      <datalist id="unknown-trackers">{{range .Unknown}}<option value="{{.ID}}">{{.LastSeen}}</option>{{end}}</datalist>
+    </div>
+  </main>
+</div>
+<script src="/assets/devices.js?v=1"></script>
 </body></html>{{end}}
 
 {{define "settings"}}<!doctype html><html lang="pl"><head><title>Ustawienia · Śledź</title>{{template "head"}}</head><body{{if .Privacy}} data-privacy="local"{{end}}>

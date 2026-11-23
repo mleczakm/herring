@@ -322,3 +322,16 @@ a:focus-visible,button:focus-visible{outline:3px solid var(--signal);outline-off
   .compare-table td::before{content:attr(data-label);display:block;font:600 .7rem/1.4 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
   .compare-table td.ours{margin:.2rem .6rem .5rem;border-radius:.6rem;border-left-width:3px}
 }
+
+/* Devices */
+.device-panel-foot .manage-link{display:block;margin-top:.55rem;text-align:center;font-size:.82rem;color:var(--ink-soft)}
+.device-card form{border-top:1px solid var(--border);margin-top:1.2rem;padding-top:1rem}
+.device-card h3{font-size:1rem}
+.card code,.unknown-trackers .chip{font-family:var(--font-mono)}
+label.check{display:flex;gap:.6rem;align-items:flex-start;font-weight:500}
+label.check input{width:auto;margin:.2rem 0 0;flex-shrink:0}
+.unknown-trackers ul{list-style:none;margin:.4rem 0 0;padding:0;display:grid;gap:.35rem}
+.unknown-trackers li{display:flex;align-items:center;gap:.6rem;font-size:.8rem;color:var(--ink-faint)}
+.unknown-trackers .chip{border:1px solid var(--border);background:#fff;border-radius:999px;padding:.2rem .65rem;font-size:.85rem;cursor:pointer;color:var(--ink)}
+.unknown-trackers .chip:hover{border-color:var(--action)}
+.add-device-panel{max-height:calc(100% - 6.4rem);overflow-y:auto}

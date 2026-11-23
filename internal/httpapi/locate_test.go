@@ -35,7 +35,7 @@ func smsServer(t *testing.T) (http.Handler, *sqlite.Store, *fakeSender, string, 
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	sender := &fakeSender{}
-	server := New(store, sender, Config{WebhookSecret: "hook", Tracker: st901.Profile{APN: "internet", ServerHost: "65.108.44.244", ServerPort: 20115}}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	server := New(store, sender, Config{WebhookSecret: "hook", Tracker: st901.Profile{ControlNumber: "48500100200", APN: "internet", ServerHost: "65.108.44.244", ServerPort: 20115, MovingInterval: 20, StoppedInterval: 300}}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	token := loginSession(t, store)
 	device, err := store.CreateManagedDevice(t.Context(), "Auto", "st901-4g", "48600100200")
 	if err != nil {

@@ -30,19 +30,20 @@ const webManifest = `{
 // Bump CACHE whenever a precached asset changes. Assets are cache-first and
 // served as immutable, so a changed file also needs a new ?v= in its URL.
 const serviceWorkerJS = `"use strict";
-var CACHE = "sledz-shell-v3";
+var CACHE = "sledz-shell-v4";
 var ASSETS = [
-  "/assets/herring.css?v=3",
+  "/assets/herring.css?v=4",
   "/assets/herring.svg?v=2",
   "/assets/leaflet.css",
   "/assets/leaflet.js",
-  "/assets/dashboard.js?v=4",
+  "/assets/dashboard.js?v=5",
+  "/assets/devices.js?v=1",
   "/assets/privacy.js?v=2",
   "/assets/settings.js?v=1",
   "/assets/space-grotesk-latin.woff2",
   "/assets/space-grotesk-latin-ext.woff2"
 ];
-var PAGES = ["/", "/ustawienia"];
+var PAGES = ["/", "/urzadzenia", "/ustawienia"];
 
 self.addEventListener("install", function(event){
   event.waitUntil(caches.open(CACHE).then(function(cache){ return cache.addAll(ASSETS); }).then(function(){ return self.skipWaiting(); }));

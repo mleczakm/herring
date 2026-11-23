@@ -103,6 +103,13 @@ func main() {
 				logger.Warn("could not link tracker to a managed device", "device_id", location.DeviceID, "error", err)
 			}
 			if err := store.SaveLocation(ctx, receivedAt, location); err != nil {
+				if errors.Is(err, sqlite.ErrUnknownTracker) {
+					// Offer the ID in the "add tracker" form. The port is
+					// public, so it is never registered without the admin.
+					if recordErr := store.RecordUnknownTracker(ctx, location.DeviceID, receivedAt); recordErr != nil {
+						logger.Warn("could not record unknown tracker", "device_id", location.DeviceID, "error", recordErr)
+					}
+				}
 				return err
 			}
 			// Position history belongs in the retention-controlled store.

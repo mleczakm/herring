@@ -64,8 +64,8 @@ Details and limits:
 - `Fix:V` means no current GPS fix; the position is stored as invalid and the
   map shows **Brak fixu GPS**.
 - If the device has no linked tracker yet, the `ID` in the reply links it, but
-  only when that ID is in `HERRING_DEVICE_IDS` and not claimed by another
-  device.
+  only when that ID is registered (entered in the UI or listed in
+  `HERRING_DEVICE_IDS`) and not claimed by another device.
 - SMS positions do not trigger place or speed alerts.
 - **Privacy**: an SMS position passes through the mobile operator and the SMS
   gateway in plain text, also in privacy mode. The settings page says so next

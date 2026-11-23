@@ -41,7 +41,10 @@ type Store interface {
 	CreateSession(context.Context, string, int64, time.Time) error
 	SessionUser(context.Context, string, time.Time) (sqlite.User, error)
 	DeleteSession(context.Context, string) error
-	CreateManagedDevice(context.Context, string, string, string) (sqlite.ManagedDevice, error)
+	CreateManagedDeviceWithTracker(context.Context, string, string, string, string) (sqlite.ManagedDevice, error)
+	UpdateManagedDevice(context.Context, int64, string, string) error
+	DeleteManagedDevice(context.Context, int64) error
+	UnknownTrackers(context.Context, time.Time) ([]sqlite.UnknownTracker, error)
 	ManagedDevices(context.Context) ([]sqlite.ManagedDevice, error)
 	LatestPositions(context.Context) ([]sqlite.DevicePosition, error)
 	ManagedDeviceByPhone(context.Context, string) (sqlite.ManagedDevice, error)
@@ -107,6 +110,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /logout", s.logout)
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("POST /devices", s.createDevice)
+	mux.HandleFunc("GET /urzadzenia", s.showDevices)
+	mux.HandleFunc("POST /devices/{id}", s.updateDevice)
+	mux.HandleFunc("POST /devices/{id}/configure", s.reconfigureDevice)
+	mux.HandleFunc("POST /devices/{id}/delete", s.deleteDevice)
+	mux.HandleFunc("GET /assets/devices.js", s.asset("text/javascript; charset=utf-8", []byte(devicesJS)))
 	mux.HandleFunc("GET /api/positions", s.positions)
 	mux.HandleFunc("POST /api/devices/{id}/locate", s.locate)
 	mux.HandleFunc("GET /ustawienia", s.showSettings)
@@ -170,7 +178,12 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, err)
 		return
 	}
-	s.render(w, "home", 200, map[string]any{"User": user, "Devices": devices, "Ready": s.sender != nil, "Active": "map", "Privacy": settings.PrivacyMode})
+	unknown, err := s.unknownTrackerViews(r.Context())
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	s.render(w, "home", 200, map[string]any{"User": user, "Devices": devices, "Unknown": unknown, "Ready": s.sender != nil, "Active": "map", "Privacy": settings.PrivacyMode})
 }
 func (s *Server) showLogin(w http.ResponseWriter, r *http.Request) {
 	if s.redirectSetup(w, r) {
@@ -244,30 +257,37 @@ func (s *Server) createDevice(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 422)
 		return
 	}
-	device, err := s.store.CreateManagedDevice(r.Context(), r.FormValue("name"), model, phone)
-	if err != nil {
+	name := r.FormValue("name")
+	if !validDeviceName(name) {
+		http.Error(w, fmt.Sprintf("Nazwa może mieć najwyżej %d znaków.", maxDeviceName), 422)
+		return
+	}
+	// The ID is optional: without it, the tracker's first frame shows up as
+	// an unknown tracker that can be assigned on the devices page.
+	trackerID, message := parseTrackerID(r.FormValue("tracker_id"))
+	if message != "" {
+		http.Error(w, message, 422)
+		return
+	}
+	device, err := s.store.CreateManagedDeviceWithTracker(r.Context(), name, model, phone, trackerID)
+	switch {
+	case errors.Is(err, sqlite.ErrPhoneInUse):
+		http.Error(w, "Ten numer telefonu jest już dodany. Znajdziesz go w „Urządzenia”.", 409)
+		return
+	case errors.Is(err, sqlite.ErrTrackerInUse):
+		http.Error(w, "To ID lokalizatora ma już inne urządzenie.", 409)
+		return
+	case err != nil:
 		s.internalError(w, r, err)
 		return
 	}
-	commands, err := s.config.Tracker.Commands()
-	if err != nil {
-		_ = s.store.SetConfigurationStatus(r.Context(), device.ID, "failed", "Niepełna konfiguracja serwera.")
+	if trackerID != "" {
+		s.logger.Info("tracker registered from the add form", "device_id", device.ID, "tracker_id", trackerID)
+	}
+	if err := s.sendConfiguration(r.Context(), device); err != nil {
 		s.internalError(w, r, err)
 		return
 	}
-	for _, command := range commands {
-		id, sendErr := s.sender.Send(r.Context(), phone, command.Body)
-		if sendErr != nil {
-			_ = s.store.SetConfigurationStatus(r.Context(), device.ID, "failed", "Nie udało się wysłać komendy „"+command.Kind+"”.")
-			s.internalError(w, r, sendErr)
-			return
-		}
-		if err := s.store.RecordSMSCommand(r.Context(), device.ID, command.Kind, id, "accepted"); err != nil {
-			s.internalError(w, r, err)
-			return
-		}
-	}
-	_ = s.store.SetConfigurationStatus(r.Context(), device.ID, "awaiting_reply", "Wysłaliśmy ustawienia. Czekamy na potwierdzenie z lokalizatora.")
 	http.Redirect(w, r, "/?device="+strconv.FormatInt(device.ID, 10), 303)
 }
 
