@@ -30,9 +30,9 @@
     var lat = Number(form.elements.latitude.value), lon = Number(form.elements.longitude.value);
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
     var pos = [lat, lon], radius = Number(form.elements.radius_m.value) || 200;
-    if (!point) point = L.circleMarker(pos, {radius: 6, color: '#a13920', fillOpacity: 1}).addTo(map);
+    if (!point) point = L.circleMarker(pos, {radius: 6, color: '#b23d17', fillOpacity: 1}).addTo(map);
     else point.setLatLng(pos);
-    if (!area) area = L.circle(pos, {radius: radius, color: '#a13920', fillOpacity: .15}).addTo(map);
+    if (!area) area = L.circle(pos, {radius: radius, color: '#b23d17', fillOpacity: .15}).addTo(map);
     else area.setLatLng(pos).setRadius(radius);
     if (center) map.setView(pos, 15);
   }
@@ -154,43 +154,73 @@
       label.append(input, document.createTextNode(' ' + place.name)); options.append(label);
     });
   }
+  // Each notification type has a switch; its options show only while it is on.
+  function syncTypes(deviceForm) {
+    deviceForm.querySelectorAll('.notify-options[data-for]').forEach(function (options) {
+      options.hidden = !deviceForm.elements[options.dataset.for].checked;
+      // Disabled controls skip form validation, so an invalid value in a
+      // switched-off type (e.g. a speed limit of 0) cannot block saving.
+      options.querySelectorAll('input,select').forEach(function (control) { control.disabled = options.hidden; });
+    });
+    var places = deviceForm.querySelector('.alert-place-choices');
+    places.hidden = !(deviceForm.elements.entry.checked || deviceForm.elements.exit.checked);
+  }
+  // A stored delay that is not one of the presets (set before this panel
+  // existed, or through the API) is kept as an extra option.
+  function selectDelay(select, minutes) {
+    var value = String(minutes);
+    if (!Array.prototype.some.call(select.options, function (option) { return option.value === value; })) {
+      var option = document.createElement('option');
+      option.value = value;
+      option.textContent = minutes + ' minutach ciszy';
+      select.append(option);
+    }
+    select.value = value;
+  }
   document.querySelectorAll('.device-alert-form').forEach(function (deviceForm) {
     var url = '/api/devices/' + encodeURIComponent(deviceForm.dataset.deviceId) + '/alerts';
-    var button = deviceForm.querySelector('button');
+    var button = deviceForm.querySelector('button[type=submit]');
+    var fields = deviceForm.elements;
+    ['offline_on', 'speed_on', 'entry', 'exit'].forEach(function (name) {
+      fields[name].addEventListener('change', function () { syncTypes(deviceForm); });
+    });
     request(url).then(function (data) {
       deviceForm.selectedPlaces = data.place_ids || [];
       renderPlaceChoices(deviceForm);
-      deviceForm.elements.entry.checked = !!data.entry;
-      deviceForm.elements.exit.checked = !!data.exit;
-      deviceForm.elements.humor.checked = !!data.humor;
-      deviceForm.elements.speed_kph.value = data.speed_kph || 0;
-      deviceForm.elements.offline_minutes.value = data.offline_minutes || 0;
-      deviceForm.elements.sms_fallback.checked = !!data.sms_fallback;
+      fields.entry.checked = !!data.entry;
+      fields.exit.checked = !!data.exit;
+      fields.humor.checked = !!data.humor;
+      fields.speed_on.checked = data.speed_kph > 0;
+      if (data.speed_kph > 0) fields.speed_kph.value = Math.round(data.speed_kph);
+      fields.offline_on.checked = data.offline_minutes > 0;
+      if (data.offline_minutes > 0) selectDelay(fields.offline_minutes, data.offline_minutes);
+      fields.sms_fallback.checked = !!data.sms_fallback;
+      syncTypes(deviceForm);
       button.disabled = false;
-    }).catch(function () { say('Nie udało się wczytać ustawień urządzenia. Odśwież stronę i spróbuj ponownie.', true); });
+    }).catch(function () { say('Nie udało się wczytać ustawień pojazdu. Odśwież stronę i spróbuj ponownie.', true); });
     deviceForm.addEventListener('submit', async function (event) {
       event.preventDefault();
-      if ((deviceForm.elements.entry.checked || deviceForm.elements.exit.checked) && !(deviceForm.selectedPlaces || []).length) {
+      if ((fields.entry.checked || fields.exit.checked) && !(deviceForm.selectedPlaces || []).length) {
         say('Wybierz przynajmniej jedno miejsce dla przyjazdów lub wyjazdów.', true);
         deviceForm.querySelector('.alert-place-choices').scrollIntoView({block: 'center'});
         return;
       }
-      var offlineMinutes = Number(deviceForm.elements.offline_minutes.value);
-      if (offlineMinutes !== 0 && (offlineMinutes < 10 || offlineMinutes > 10080)) {
-        say('Czas bez sygnału musi wynosić 0 albo od 10 minut do 7 dni (10080 minut).', true);
-        deviceForm.elements.offline_minutes.focus();
+      var speed = fields.speed_on.checked ? Number(fields.speed_kph.value) : 0;
+      if (fields.speed_on.checked && !(speed >= 1 && speed <= 500)) {
+        say('Limit prędkości musi wynosić od 1 do 500 km/h.', true);
+        fields.speed_kph.focus();
         return;
       }
-      if (deviceForm.elements.sms_fallback.checked && offlineMinutes === 0) {
-        say('Zapytanie SMS-em działa razem z powiadomieniem o braku sygnału. Ustaw liczbę minut.', true);
-        deviceForm.elements.offline_minutes.focus();
-        return;
-      }
+      var offline = fields.offline_on.checked ? Number(fields.offline_minutes.value) : 0;
       button.disabled = true;
       try {
-        await request(url, 'PUT', {entry: deviceForm.elements.entry.checked, exit: deviceForm.elements.exit.checked, humor: deviceForm.elements.humor.checked, place_ids: deviceForm.selectedPlaces || [], speed_kph: Number(deviceForm.elements.speed_kph.value), offline_minutes: offlineMinutes, sms_fallback: deviceForm.elements.sms_fallback.checked});
-        say('Ustawienia urządzenia zostały zapisane.');
-      } catch (_) { say('Nie udało się zapisać ustawień urządzenia. Spróbuj ponownie.', true); }
+        await request(url, 'PUT', {
+          entry: fields.entry.checked, exit: fields.exit.checked, humor: fields.humor.checked,
+          place_ids: deviceForm.selectedPlaces || [], speed_kph: speed,
+          offline_minutes: offline, sms_fallback: fields.offline_on.checked && fields.sms_fallback.checked
+        });
+        say('Powiadomienia dla pojazdu zostały zapisane.');
+      } catch (_) { say('Nie udało się zapisać powiadomień. Spróbuj ponownie.', true); }
       button.disabled = false;
     });
   });

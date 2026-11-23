@@ -6,11 +6,30 @@
 .alert-card form>.btn{margin-top:1rem}.alert-check{display:flex;align-items:center;gap:.5rem;margin-top:.5rem}.alert-check input{width:auto;margin:0}
 .device-alert-form+.device-alert-form{border-top:1px solid var(--border);margin-top:1rem;padding-top:.3rem}
 .device-alert-form input[type=number]{max-width:12rem}.place-list{list-style:none;padding:0}.place-list li{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 0;border-bottom:1px solid var(--border)}
-.place-list small{display:block;color:var(--ink-faint)}.place-list button,.suggestion-button{border:0;background:transparent;color:var(--action);font:inherit;text-decoration:underline;cursor:pointer;padding:.3rem}.alert-notice{border-left:3px solid var(--action);padding:.6rem .9rem;background:#fff4e8}.alert-status:empty{display:none}.alert-status{font-weight:600}.alert-status.error{color:var(--alert)}
+.place-list small{display:block;color:var(--ink-faint)}.place-list button,.suggestion-button{border:0;background:transparent;color:var(--action);font:inherit;text-decoration:underline;cursor:pointer;padding:.3rem}.alert-notice{border-left:3px solid var(--action);padding:.6rem .9rem;background:#fbe7dc}.alert-status:empty{display:none}.alert-status{font-weight:600}.alert-status.error{color:var(--alert)}
 @media(max-width:600px){.alert-grid{grid-template-columns:1fr}}
 .alert-header{background:var(--sea);color:var(--surface);padding:1rem max(1rem,calc((100% - 52rem)/2));display:flex;align-items:center;justify-content:space-between;gap:1rem}.alert-header a{color:inherit}.alert-main{padding:0 1rem 3rem}.alert-settings{margin-left:auto;margin-right:auto}
 .alert-place-choices{border:1px solid var(--border);border-radius:.6rem;margin:1rem 0 0;padding:.5rem .8rem}.alert-place-choices legend{font-size:.85rem;font-weight:600;color:var(--ink-soft);padding:0 .3rem}
 .alert-brand{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--font-title);font-size:1.15rem}.alert-brand img{width:2rem;height:2rem}.alert-settings h1{font-size:clamp(1.7rem,4vw,2.3rem)}#place-map{height:20rem;border:1px solid var(--border);border-radius:.7rem;z-index:0} .alert-card details{margin-top:.8rem}.alert-card summary{cursor:pointer;color:var(--action);font-weight:600}
-.alert-offline{margin:1rem 0 0;padding:.4rem 1rem .8rem;border:1px solid var(--border);border-radius:.7rem}
-.alert-offline legend{padding:0 .4rem;font-weight:600;color:var(--ink)}
 .alert-hint{margin:.35rem 0 .5rem;font-size:.85rem;line-height:1.5;color:var(--ink-faint)}
+[hidden]{display:none!important}
+.notify-types{display:flex;flex-direction:column;gap:.6rem;margin-top:.6rem}
+.notify-type{border:1px solid var(--border);border-radius:.8rem;background:var(--bg);padding:.8rem 1rem}
+.notify-type:has(input[role=switch]:checked){border-color:var(--signal);background:var(--surface)}
+.notify-toggle{display:flex;align-items:flex-start;gap:.85rem;margin:0;cursor:pointer;color:var(--ink);font-size:1rem}
+.notify-toggle span{display:flex;flex-direction:column;gap:.15rem}
+.notify-toggle strong{font-family:var(--font-title);font-size:1rem}
+.notify-toggle small{font-weight:400;font-size:.85rem;line-height:1.45;color:var(--ink-soft)}
+.notify-paused{font-style:normal;font-size:.75rem;font-weight:600;color:var(--action)}
+input[role=switch]{appearance:none;-webkit-appearance:none;flex-shrink:0;width:2.6rem;height:1.5rem;margin:.1rem 0 0;padding:0;border:0;border-radius:999px;background:var(--border);position:relative;cursor:pointer;transition:background .15s}
+input[role=switch]::after{content:"";position:absolute;top:.2rem;left:.2rem;width:1.1rem;height:1.1rem;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+input[role=switch]:checked{background:var(--signal)}
+input[role=switch]:checked::after{transform:translateX(1.1rem)}
+input[role=switch]:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
+.notify-options{margin:.6rem 0 0 3.45rem;padding-top:.5rem;border-top:1px dashed var(--border)}
+.notify-options label{margin-top:.2rem}
+.notify-options select,.notify-options input[type=number]{max-width:16rem}
+.alert-place-choices{margin:0}
+.device-alert-form>.btn{margin-top:1rem}
+@media(max-width:600px){.notify-options{margin-left:0}}
+@media(prefers-reduced-motion:reduce){input[role=switch],input[role=switch]::after{transition:none}}

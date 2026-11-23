@@ -1,5 +1,5 @@
 {{define "alert-settings"}}
-<!doctype html><html lang="pl"><head>{{template "head"}}<title>Miejsca i powiadomienia · Śledź</title><link rel="stylesheet" href="/assets/leaflet.css"><link rel="stylesheet" href="/assets/alert-settings.css?v=2"></head><body><header class="alert-header"><a class="alert-brand" href="/">{{template "wordmark"}}</a><a href="/">Wróć do mapy</a></header><main class="alert-main">
+<!doctype html><html lang="pl"><head>{{template "head"}}<title>Miejsca i powiadomienia · Śledź</title><link rel="stylesheet" href="/assets/leaflet.css"><link rel="stylesheet" href="/assets/alert-settings.css?v=3"></head><body><header class="alert-header"><a class="alert-brand" href="/">{{template "wordmark"}}</a><a href="/">Wróć do mapy</a></header><main class="alert-main">
 <section class="alert-settings" id="alert-settings" data-private="{{if .Privacy}}true{{else}}false{{end}}">
   <h1>Miejsca i powiadomienia</h1>
   <p>Wskaż na mapie dom lub inne ważne miejsce. Potem wybierz, kiedy Śledź ma dać Ci znać.</p>
@@ -25,22 +25,49 @@
     <div id="place-suggestions"><h3>Propozycje z historii postojów</h3><p>Wczytywanie propozycji…</p></div>
   </div>
   <div class="alert-card">
-    <h2>Powiadomienia dla urządzeń</h2>
-    <p>Wybierz miejsca, o których chcesz otrzymywać powiadomienia. Wpisz 0, aby wyłączyć powiadomienia o prędkości.</p>
+    <h2>Powiadomienia dla pojazdów</h2>
+    <p>Dla każdego pojazdu wybierz, o czym chcesz wiedzieć. Każdy rodzaj powiadomienia włączasz i ustawiasz osobno.</p>
     {{range .Devices}}<form class="device-alert-form" data-device-id="{{.ID}}">
       <h3>{{if .Name}}{{.Name}}{{else}}{{.PhoneNumber}}{{end}}</h3>
-      <fieldset class="alert-place-choices"><legend>Obserwowane miejsca</legend><div class="alert-place-options">Wczytywanie miejsc…</div></fieldset>
-      <label class="alert-check"><input type="checkbox" name="entry"> Przyjazd do miejsca</label>
-      <label class="alert-check"><input type="checkbox" name="exit"> Wyjazd z miejsca</label>
-      <label class="alert-check"><input type="checkbox" name="humor"> Dodaj żart do wiadomości</label>
-      <label>Prędkość powyżej (km/h)<input type="number" name="speed_kph" min="0" max="500" step="1" value="0" required></label>
-      <fieldset class="alert-offline"><legend>Brak sygnału</legend>
-        <label>Powiadom, gdy lokalizator milczy dłużej niż (minuty)<input type="number" name="offline_minutes" min="0" max="10080" step="1" value="0" required></label>
-        <p class="alert-hint">Wpisz 0, aby wyłączyć. Na postoju lokalizator odzywa się co kilka minut, więc ustaw co najmniej 30 minut, żeby uniknąć fałszywych alarmów.</p>
-        <label class="alert-check"><input type="checkbox" name="sms_fallback"> Gdy milczy, zapytaj go SMS-em o pozycję</label>
-        <p class="alert-hint">Działa bez internetu w lokalizatorze, jeśli ma zasięg sieci komórkowej. Kosztuje jeden SMS ze Śledzia i jedną odpowiedź z karty SIM lokalizatora. Pozycja w SMS-ie przechodzi przez operatora komórkowego, także w trybie prywatnym.</p>
-      </fieldset>
-      <button class="btn secondary" type="submit" disabled>Zapisz ustawienia</button>
+      <div class="notify-types">
+        <section class="notify-type">
+          <label class="notify-toggle"><input type="checkbox" name="offline_on" role="switch"><span><strong>Pojazd offline</strong><small>Gdy lokalizator przestanie się odzywać. Dostaniesz też wiadomość, gdy znów nawiąże kontakt.</small></span></label>
+          <div class="notify-options" data-for="offline_on" hidden>
+            <label>Powiadom po
+              <select name="offline_minutes">
+                <option value="15">15 minutach ciszy</option>
+                <option value="30" selected>30 minutach ciszy</option>
+                <option value="60">1 godzinie ciszy</option>
+                <option value="120">2 godzinach ciszy</option>
+                <option value="360">6 godzinach ciszy</option>
+                <option value="720">12 godzinach ciszy</option>
+                <option value="1440">1 dniu ciszy</option>
+                <option value="4320">3 dniach ciszy</option>
+              </select>
+            </label>
+            <p class="alert-hint">Na postoju lokalizator odzywa się co kilka minut. Krótsze opóźnienie to szybsza wiadomość, ale też więcej fałszywych alarmów przy chwilowym braku zasięgu, np. w garażu podziemnym.</p>
+            <label class="alert-check"><input type="checkbox" name="sms_fallback"> Zapytaj wtedy lokalizator SMS-em o pozycję</label>
+            <p class="alert-hint">Działa bez internetu w lokalizatorze, jeśli ma zasięg sieci komórkowej. Kosztuje jeden SMS ze Śledzia i jedną odpowiedź z karty SIM lokalizatora. Pozycja w SMS-ie przechodzi przez operatora komórkowego, także w trybie prywatnym.</p>
+          </div>
+        </section>
+        <section class="notify-type">
+          <label class="notify-toggle"><input type="checkbox" name="speed_on" role="switch"><span><strong>Przekroczenie prędkości</strong><small>Gdy pojazd pojedzie szybciej niż Twój limit. Pośpiech poniża!</small>{{if $.Privacy}}<em class="notify-paused">Wstrzymane w trybie prywatnym</em>{{end}}</span></label>
+          <div class="notify-options" data-for="speed_on" hidden>
+            <label>Limit prędkości (km/h)<input type="number" name="speed_kph" min="1" max="500" step="1" value="90" inputmode="numeric"></label>
+          </div>
+        </section>
+        <section class="notify-type">
+          <label class="notify-toggle"><input type="checkbox" name="entry" role="switch"><span><strong>Przyjazd do miejsca</strong><small>Gdy pojazd dotrze do wybranego miejsca, np. do domu.</small>{{if $.Privacy}}<em class="notify-paused">Wstrzymane w trybie prywatnym</em>{{end}}</span></label>
+        </section>
+        <section class="notify-type">
+          <label class="notify-toggle"><input type="checkbox" name="exit" role="switch"><span><strong>Wyjazd z miejsca</strong><small>Gdy pojazd opuści wybrane miejsce, np. „Auto wyruszyło od teściowej”.</small>{{if $.Privacy}}<em class="notify-paused">Wstrzymane w trybie prywatnym</em>{{end}}</span></label>
+        </section>
+        <fieldset class="alert-place-choices" hidden><legend>Miejsca dla przyjazdów i wyjazdów</legend><div class="alert-place-options">Wczytywanie miejsc…</div></fieldset>
+        <section class="notify-type">
+          <label class="notify-toggle"><input type="checkbox" name="humor" role="switch"><span><strong>Z humorem</strong><small>Śledź doda do każdej wiadomości żartobliwe zdanie. Żart nie zna nazw Twoich miejsc ani tras.</small></span></label>
+        </section>
+      </div>
+      <button class="btn" type="submit" disabled>Zapisz powiadomienia</button>
     </form>{{else}}<p>Dodaj urządzenie, aby ustawić powiadomienia.</p>{{end}}
   </div>
   <div class="alert-card">
@@ -51,5 +78,5 @@
     <button id="push-disable" class="btn secondary" type="button" hidden>Wyłącz powiadomienia</button>
   </div>
 </section>
-</main><script src="/assets/leaflet.js" defer></script><script src="/assets/alert-settings.js?v=2" defer></script></body></html>
+</main><script src="/assets/leaflet.js" defer></script><script src="/assets/alert-settings.js?v=4" defer></script></body></html>
 {{end}}
