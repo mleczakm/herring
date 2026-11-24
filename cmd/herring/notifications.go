@@ -39,6 +39,13 @@ func startNotifications(ctx context.Context, store *sqlite.Store, logger *slog.L
 }
 
 func (n *notifications) observe(ctx context.Context, fix sinotrack.Location) {
+	guard, guardErr := n.store.EvaluateGuard(ctx, fix, time.Now())
+	if guardErr != nil {
+		n.logger.Warn("could not evaluate vehicle guard", "error", guardErr)
+	}
+	if guard != nil {
+		n.enqueue(*guard)
+	}
 	events, err := n.store.EvaluateAlerts(ctx, fix)
 	if err != nil {
 		n.logger.Warn("could not evaluate tracking alerts", "error", err)
@@ -129,6 +136,40 @@ func (n *notifications) watchOffline(ctx context.Context, sms locator) {
 			}
 			n.logger.Info("tracker offline", "device_id", event.DeviceID, "silent_for", event.OfflineFor.Round(time.Minute).String())
 			n.enqueue(event)
+		}
+	}
+}
+
+func (n *notifications) watchVehicles(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	check := func() {
+		now := time.Now()
+		for _, load := range []func(context.Context, time.Time) ([]sqlite.ScheduledVehicleEvent, error){n.store.DueReminders, n.store.MonthlyEvents} {
+			events, err := load(ctx, now)
+			if err != nil && ctx.Err() == nil {
+				n.logger.Warn("could not check vehicle notifications", "error", err)
+			}
+			for _, event := range events {
+				if ctx.Err() != nil {
+					return
+				}
+				err := n.service.Send(ctx, event.AlertEvent)
+				if err == nil {
+					err = n.store.MarkVehicleEventSent(ctx, event)
+				}
+				if err != nil && ctx.Err() == nil {
+					n.logger.Warn("could not send scheduled vehicle notification", "kind", event.Kind, "error", err)
+				}
+			}
+		}
+	}
+	for {
+		check()
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
 		}
 	}
 }

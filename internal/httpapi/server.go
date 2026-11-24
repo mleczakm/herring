@@ -34,6 +34,22 @@ type Sender interface {
 }
 type Store interface {
 	alertStore
+	VehicleProfile(context.Context, int64) (sqlite.VehicleProfile, error)
+	SaveVehicleProfile(context.Context, int64, string, string, *float64) error
+	Reminders(context.Context, int64) ([]sqlite.Reminder, error)
+	AddReminder(context.Context, int64, int64, string, string, float64) error
+	DeleteReminder(context.Context, int64, int64) error
+	Guard(context.Context, int64) (sqlite.Guard, error)
+	SetGuard(context.Context, int64, int64, float64, time.Time) (bool, error)
+	Shares(context.Context, int64, time.Time) (int, error)
+	CreateShare(context.Context, int64, string, time.Time, time.Time) (bool, error)
+	RevokeShares(context.Context, int64) error
+	SharedPosition(context.Context, string, time.Time) (sqlite.SharedPosition, error)
+	TrackPoints(context.Context, int64, time.Time, time.Time) ([]sqlite.TrackPoint, error)
+	TripNotes(context.Context, int64) (map[string]string, error)
+	SaveTripNote(context.Context, int64, time.Time, string) error
+	MonthlyEnabled(context.Context, int64) (bool, error)
+	SetMonthly(context.Context, int64, bool, time.Time) error
 	pushStore
 	historyStore
 	SetupRequired(context.Context) (bool, error)
@@ -85,11 +101,12 @@ func New(store Store, sender Sender, config Config, logger *slog.Logger) *Server
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Server{store: store, sender: sender, config: config, logger: logger, pages: template.Must(template.New("pages").Parse(pages + publicPages + notificationPage))}
+	return &Server{store: store, sender: sender, config: config, logger: logger, pages: template.Must(template.New("pages").Funcs(template.FuncMap{"km": func(m float64) float64 { return m / 1000 }}).Parse(pages + publicPages + notificationPage + vehiclePages))}
 }
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	s.alertRoutes(mux)
+	s.vehicleRoutes(mux)
 	s.RegisterPush(mux, s.config.Push)
 	mux.HandleFunc("GET /powiadomienia", s.showNotifications)
 	mux.HandleFunc("GET /assets/alert-settings.css", s.asset("text/css; charset=utf-8", notificationCSS))
@@ -327,6 +344,7 @@ func (s *Server) positions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type position struct {
+		sqlite.VehicleProfile
 		ID           int64   `json:"id"`
 		Name         string  `json:"name"`
 		Model        string  `json:"model"`
@@ -351,7 +369,7 @@ func (s *Server) positions(w http.ResponseWriter, r *http.Request) {
 		// In privacy mode positions are only readable by the bound browser
 		// through /api/privacy/sync, never through this shared endpoint.
 		hasPosition := p.HasPosition && !settings.PrivacyMode
-		item := position{ID: p.Device.ID, Name: name, Model: p.Device.Model, ConfigStatus: p.Device.ConfigStatus, ConfigDetail: p.Device.ConfigDetail, HasPosition: hasPosition}
+		item := position{VehicleProfile: p.VehicleProfile, ID: p.Device.ID, Name: name, Model: p.Device.Model, ConfigStatus: p.Device.ConfigStatus, ConfigDetail: p.Device.ConfigDetail, HasPosition: hasPosition}
 		if hasPosition {
 			item.Latitude, item.Longitude, item.SpeedKPH, item.Heading = p.Latitude, p.Longitude, p.SpeedKPH, p.Heading
 			item.GPSValid = p.GPSValid

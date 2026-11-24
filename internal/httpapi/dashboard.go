@@ -119,10 +119,10 @@ if (mapEl && window.L) {
   var markers = {};
   var didInitialFit = false;
 
-  function markerIcon(cls, moving){
+  function markerIcon(cls, moving, d){
     return L.divIcon({
       className: "",
-      html: '<div class="marker' + (moving ? " moving" : "") + '"><div class="marker-pin" style="background:' + cls.color + '"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg></div></div>',
+      html: '<div class="marker' + (moving ? " moving" : "") + '"><div class="marker-pin" style="background:' + cls.color + '"><span style="font-size:18px;color:white;transform:rotate(45deg)">' + window.vehicleSymbol(d.vehicle_type,d.map_icon) + '</span></div></div>',
       iconSize: [40, 40],
       iconAnchor: [20, 40],
       popupAnchor: [0, -42]
@@ -134,6 +134,7 @@ if (mapEl && window.L) {
       '<div class="popup-row"><span>Prędkość</span><strong>' + (d.has_position ? Math.round(d.speed_kph || 0) + " km/h" : "—") + '</strong></div>' +
       '<div class="popup-row"><span>Ostatnia aktualizacja</span><span>' + (d.has_position ? relTime(d.received_at) : "—") + '</span></div>' +
       '<div class="popup-row"><span>Status</span><span class="pill ' + cls.state + '">' + esc(cls.label) + '</span></div>' +
+      '<p><a href="/pojazdy/' + encodeURIComponent(d.id) + '">Ustawienia pojazdu</a> · <a href="/trasy?id=' + encodeURIComponent(d.id) + '">Przejazdy</a></p>' +
       '<button class="btn btn-small popup-locate" type="button" data-locate="' + esc(String(d.id)) + '">Zapytaj SMS-em o pozycję</button>' +
       '</div></div>';
   }
@@ -195,10 +196,10 @@ if (mapEl && window.L) {
       var moving = cls.state === "ok";
       if (markers[d.id]) {
         markers[d.id].setLatLng(latlng);
-        markers[d.id].setIcon(markerIcon(cls, moving));
+        markers[d.id].setIcon(markerIcon(cls, moving, d));
         markers[d.id].setPopupContent(popupHTML(d, cls));
       } else {
-        markers[d.id] = L.marker(latlng, {icon: markerIcon(cls, moving)})
+        markers[d.id] = L.marker(latlng, {icon: markerIcon(cls, moving, d)})
           .addTo(map)
           .bindPopup(popupHTML(d, cls), {maxWidth: 300, minWidth: 220, closeButton: false});
       }

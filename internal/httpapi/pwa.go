@@ -30,16 +30,18 @@ const webManifest = `{
 // Bump CACHE whenever a precached asset changes. Assets are cache-first and
 // served as immutable, so a changed file also needs a new ?v= in its URL.
 const serviceWorkerJS = `"use strict";
-var CACHE = "sledz-shell-v5";
+var CACHE = "sledz-shell-v6";
 var ASSETS = [
-  "/assets/herring.css?v=5",
+  "/assets/herring.css?v=6",
   "/assets/herring.svg?v=2",
   "/assets/leaflet.css",
   "/assets/leaflet.js",
-  "/assets/dashboard.js?v=5",
+  "/assets/dashboard.js?v=6",
   "/assets/devices.js?v=1",
-  "/assets/privacy.js?v=3",
+  "/assets/privacy.js?v=4",
   "/assets/history.js?v=1",
+  "/assets/vehicle-maps.js?v=1",
+  "/assets/private-trips.js?v=1",
   "/assets/settings.js?v=1",
   "/assets/space-grotesk-latin.woff2",
   "/assets/space-grotesk-latin-ext.woff2"
@@ -60,6 +62,7 @@ self.addEventListener("fetch", function(event){
   var request = event.request;
   if (request.method !== "GET") return;
   var url = new URL(request.url);
+  if (url.pathname.startsWith("/lokalizacja/")) return;
   if (url.origin !== self.location.origin) return;
   if (url.pathname.indexOf("/api/") === 0 || url.pathname.indexOf("/webhooks/") === 0) return;
 
@@ -248,11 +251,11 @@ function applyRetention(){
     if (!days) return 0;
     var cutoff = Date.now() - days * 86400000;
     return db().then(function(d){
-      var tx = d.transaction("positions", "readwrite");
+      var tx = d.transaction(["positions","meta"], "readwrite");
       var removed = 0;
       tx.objectStore("positions").index("received").openCursor(IDBKeyRange.upperBound(cutoff, true)).onsuccess = function(event){
         var cursor = event.target.result;
-        if (cursor) { cursor.delete(); removed++; cursor.continue(); }
+        if (cursor) { tx.objectStore("meta").delete("trip-note:" + cursor.primaryKey); cursor.delete(); removed++; cursor.continue(); }
       };
       return finished(tx).then(function(){ return removed; });
     });
@@ -268,7 +271,7 @@ function devices(){
       var index = tx.objectStore("positions").index("device_time");
       list.sort(function(a, b){ return b.id - a.id; });
       return Promise.all(list.map(function(device){
-        var item = {id: device.id, name: device.name, model: device.model, config_status: device.config_status, config_detail: device.config_detail, has_position: false};
+        var item = {id: device.id, name: device.name, model: device.model, config_status: device.config_status, config_detail: device.config_detail, vehicle_type: device.vehicle_type, map_icon: device.map_icon, has_position: false};
         if (!device.tracker_id) return item;
         var range = IDBKeyRange.bound([device.tracker_id, -Infinity], [device.tracker_id, Infinity]);
         return request(index.openCursor(range, "prev")).then(function(cursor){
@@ -337,6 +340,25 @@ function wipe(){
   });
 }
 
-window.HerringPrivacy = {installed: installed, enable: enable, disable: disable, sync: sync, devices: devices, route: route, stats: stats, wipe: wipe};
+async function trackPoints(id, from, until){
+  const d = await db();
+  const device = await request(d.transaction("devices").objectStore("devices").get(id));
+  if (!device || !device.tracker_id) return [];
+  const index = d.transaction("positions").objectStore("positions").index("device_time");
+  const range = IDBKeyRange.bound([device.tracker_id,from],[device.tracker_id,until],false,true);
+  return (await request(index.getAll(range))).filter(p => p.gps_valid && p.source !== "sms");
+}
+async function tripNote(key, note){
+  if (note === undefined) return getMeta("trip-note:" + key);
+  const d = await db();
+  const tx = d.transaction(["meta","positions"],"readwrite");
+  const complete = finished(tx);
+  const point = await request(tx.objectStore("positions").get(key));
+  if (point) tx.objectStore("meta").put(note,"trip-note:" + key);
+  await complete;
+  return !!point;
+}
+
+window.HerringPrivacy = {trackPoints: trackPoints, tripNote: tripNote, installed: installed, enable: enable, disable: disable, sync: sync, devices: devices, route: route, stats: stats, wipe: wipe};
 })();
 `

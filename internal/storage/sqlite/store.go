@@ -280,6 +280,7 @@ type DevicePosition struct {
 	TrackerTime, ReceivedAt                time.Time
 	// Source is "gprs" for tracker frames and "sms" for SMS replies.
 	Source string
+	VehicleProfile
 }
 
 // LatestPositions returns every managed device paired with its most recent
@@ -288,8 +289,9 @@ type DevicePosition struct {
 func (s *Store) LatestPositions(ctx context.Context) ([]DevicePosition, error) {
 	rows, err := s.database.QueryContext(ctx, `
         SELECT md.id, md.name, md.model, md.phone_number, COALESCE(md.tracker_id,''), md.config_status, md.config_detail, md.config_started_at, md.config_verified_at,
-               p.latitude, p.longitude, p.speed_kph, p.heading, p.gps_valid, p.tracker_time, p.received_at, p.source
+               p.latitude, p.longitude, p.speed_kph, p.heading, p.gps_valid, p.tracker_time, p.received_at, p.source, COALESCE(v.kind,'other'), COALESCE(v.icon,'auto')
         FROM managed_devices md
+        LEFT JOIN vehicle_profiles v ON v.device_id=md.id
         LEFT JOIN positions p ON p.id = (
             SELECT p2.id FROM positions p2 WHERE p2.device_id = md.tracker_id ORDER BY p2.tracker_time DESC LIMIT 1
         )
@@ -310,7 +312,7 @@ func (s *Store) LatestPositions(ctx context.Context) ([]DevicePosition, error) {
 			source                sql.NullString
 		)
 		if err := rows.Scan(&dp.Device.ID, &dp.Device.Name, &dp.Device.Model, &dp.Device.PhoneNumber, &dp.Device.TrackerID, &dp.Device.ConfigStatus, &dp.Device.ConfigDetail, &started, &verified,
-			&lat, &lng, &speed, &head, &gpsValid, &trackerTime, &received, &source); err != nil {
+			&lat, &lng, &speed, &head, &gpsValid, &trackerTime, &received, &source, &dp.Kind, &dp.Icon); err != nil {
 			return nil, fmt.Errorf("scan latest position: %w", err)
 		}
 		dp.Device.ConfigStartedAt, _ = time.Parse(time.RFC3339Nano, started)
@@ -366,7 +368,15 @@ func (s *Store) RegisterDevice(ctx context.Context, deviceID string) error {
 // rejects identifiers that have not been registered; that case is reported as
 // ErrUnknownTracker.
 func (s *Store) SaveLocation(ctx context.Context, receivedAt time.Time, location sinotrack.Location) error {
-	_, err := s.database.ExecContext(ctx, `
+	tx, err := s.database.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := updateOdometer(ctx, tx, location, receivedAt); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `
         INSERT INTO positions (
             device_id, tracker_time, received_at, gps_valid, latitude, longitude,
             speed_kph, heading, status, mcc, mnc, raw_frame
@@ -386,12 +396,13 @@ func (s *Store) SaveLocation(ctx context.Context, receivedAt time.Time, location
 		location.Raw,
 	)
 	if err != nil {
+		_ = tx.Rollback() // Release the single connection before checking registration.
 		if registered, checkErr := s.trackerRegistered(ctx, location.DeviceID); checkErr == nil && !registered {
 			return fmt.Errorf("save location for device %s: %w", location.DeviceID, ErrUnknownTracker)
 		}
 		return fmt.Errorf("save location for device %s: %w", location.DeviceID, err)
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *Store) initialize(ctx context.Context) error {
@@ -403,6 +414,7 @@ func (s *Store) initialize(ctx context.Context) error {
 		schema,
 		alertsSchema,
 		unknownTrackersSchema,
+		vehiclesSchema,
 	} {
 		if _, err := s.database.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("initialize SQLite: %w", err)

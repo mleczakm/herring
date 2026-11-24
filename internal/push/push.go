@@ -181,6 +181,12 @@ func localText(e sqlite.AlertEvent) string {
 		name = "Lokalizator"
 	}
 	switch e.Kind {
+	case "guard":
+		return fmt.Sprintf("Wykryto ruch lub opuszczenie strefy ochrony przez pojazd „%s”. Sprawdź mapę.", name)
+	case "service":
+		return fmt.Sprintf("%s: czas na serwis „%s”.", name, e.PlaceName)
+	case "monthly":
+		return e.PlaceName
 	case "entry":
 		return fmt.Sprintf("%s jest już na miejscu „%s”.", name, e.PlaceName)
 	case "exit":

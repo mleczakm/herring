@@ -385,3 +385,9 @@ label.check input{width:auto;margin:.2rem 0 0;flex-shrink:0}
   .history-status{margin-top:.7rem}
   .history-stats div{padding:.4rem .6rem}
 }
+.vehicle-page input[type="checkbox"]{width:auto}
+.vehicle-page table{width:100%;border-collapse:collapse;margin-top:.6rem}
+.vehicle-page th,.vehicle-page td{text-align:left;padding:.4rem .25rem;border-bottom:1px solid var(--border)}
+.vehicle-page details{margin-top:.8rem}
+.vehicle-page [data-track-map]{margin:.8rem 0;height:320px;border-radius:.55rem;z-index:1}
+.vehicle-page [aria-current="page"]{background:var(--action-hover)}

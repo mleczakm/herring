@@ -10,7 +10,7 @@ var publicPages string
 // CDN at runtime, so the strict CSP in securityHeaders never needs to trust a
 // third party for script execution — only map tile images are cross-origin.
 const pages = `
-{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0e3332"><link rel="icon" href="/assets/herring.svg?v=2" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=2"><link rel="stylesheet" href="/assets/herring.css?v=5">{{end}}
+{{define "head"}}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0e3332"><link rel="icon" href="/assets/herring.svg?v=2" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=2"><link rel="stylesheet" href="/assets/herring.css?v=6">{{end}}
 
 
 
@@ -39,6 +39,8 @@ const pages = `
       <li><a class="nav-link{{if eq .Active "map"}} active{{end}}" href="/">{{template "icon-map"}}<span>Mapa na żywo</span></a></li>
       <li><a class="nav-link{{if eq .Active "devices"}} active{{end}}" href="/urzadzenia">{{template "icon-crosshair"}}<span>Urządzenia</span></a></li>
       <li><a class="nav-link{{if eq .Active "history"}} active{{end}}" href="/historia">{{template "icon-path"}}<span>Historia tras</span></a></li>
+      <li><a class="nav-link{{if eq .Active "vehicles"}} active{{end}}" href="/pojazdy">{{template "icon-crosshair"}}<span>Pojazdy</span></a></li>
+      <li><a class="nav-link{{if eq .Active "trips"}} active{{end}}" href="/trasy">{{template "icon-path"}}<span>Przejazdy i statystyki</span></a></li>
       <li><a class="nav-link" href="/powiadomienia">{{template "icon-bell"}}<span>Miejsca i powiadomienia</span></a></li>
       <li><a class="nav-link{{if eq .Active "settings"}} active{{end}}" href="/ustawienia">{{template "icon-gear"}}<span>Ustawienia</span>{{if .Privacy}}<span class="badge-private">prywatny</span>{{end}}</a></li>
     </ul></nav>
@@ -83,8 +85,9 @@ const pages = `
   </main>
 </div>
 <script src="/assets/leaflet.js"></script>
-<script src="/assets/privacy.js?v=3"></script>
-<script src="/assets/dashboard.js?v=5"></script>
+<script src="/assets/privacy.js?v=4"></script>
+<script src="/assets/vehicle-maps.js?v=1"></script>
+<script src="/assets/dashboard.js?v=6"></script>
 </body></html>{{end}}
 
 {{define "unknown-picker"}}{{if .}}<div class="unknown-trackers"><p class="hint">Te lokalizatory próbowały się ostatnio połączyć, ale Śledź ich nie zna. Wybierz swój tylko wtedy, gdy ID zgadza się z naklejką:</p><ul>{{range .}}<li><button type="button" class="chip" data-tracker-id="{{.ID}}">{{.ID}}</button><span>{{.LastSeen}}, {{.Attempts}}</span></li>{{end}}</ul></div>{{end}}<datalist id="unknown-trackers">{{range .}}<option value="{{.ID}}">{{.LastSeen}}</option>{{end}}</datalist>{{end}}
@@ -196,7 +199,7 @@ const pages = `
     </div>
   </main>
 </div>
-<script src="/assets/privacy.js?v=3"></script>
+<script src="/assets/privacy.js?v=4"></script>
 <script src="/assets/settings.js?v=1"></script>
 </body></html>{{end}}
 
@@ -244,7 +247,7 @@ const pages = `
   </main>
 </div>
 <script src="/assets/leaflet.js"></script>
-<script src="/assets/privacy.js?v=3"></script>
+<script src="/assets/privacy.js?v=4"></script>
 <script src="/assets/history.js?v=1"></script>
 </body></html>{{end}}
 `

@@ -120,7 +120,7 @@ type AlertEvent struct {
 // RevealsLocation reports whether the event says where the device is. Only
 // such events are held back in privacy mode.
 func (e AlertEvent) RevealsLocation() bool {
-	return e.Kind == "entry" || e.Kind == "exit" || e.Kind == "speed"
+	return e.Kind == "entry" || e.Kind == "exit" || e.Kind == "speed" || e.Kind == "guard" || e.Kind == "monthly"
 }
 
 func (s *Store) Places(ctx context.Context, userID int64) ([]Place, error) {
@@ -293,7 +293,7 @@ func (s *Store) PlaceSuggestions(ctx context.Context, userID int64, now time.Tim
 	for _, p := range out {
 		near := false
 		for _, saved := range places {
-			if distanceM(p.Latitude, p.Longitude, saved.Latitude, saved.Longitude) <= math.Max(saved.RadiusM, 150) {
+			if DistanceM(p.Latitude, p.Longitude, saved.Latitude, saved.Longitude) <= math.Max(saved.RadiusM, 150) {
 				near = true
 				break
 			}
@@ -304,7 +304,7 @@ func (s *Store) PlaceSuggestions(ctx context.Context, userID int64, now time.Tim
 	}
 	return filtered, nil
 }
-func distanceM(a, b, c, d float64) float64 {
+func DistanceM(a, b, c, d float64) float64 {
 	const rad = math.Pi / 180
 	x := math.Sin((c - a) * rad / 2)
 	y := math.Sin((d - b) * rad / 2)
@@ -380,7 +380,7 @@ func (s *Store) EvaluateAlerts(ctx context.Context, loc sinotrack.Location) ([]A
 			if !c.entry && !c.exit {
 				break
 			}
-			inside := distanceM(loc.Latitude, loc.Longitude, p.Latitude, p.Longitude) <= p.RadiusM
+			inside := DistanceM(loc.Latitude, loc.Longitude, p.Latitude, p.Longitude) <= p.RadiusM
 			var previous bool
 			var last string
 			e := tx.QueryRowContext(ctx, `SELECT inside,tracker_time FROM alert_place_state WHERE user_id=? AND device_id=? AND place_id=?`, c.user, c.device, p.ID).Scan(&previous, &last)

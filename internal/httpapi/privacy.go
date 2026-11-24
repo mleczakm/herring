@@ -140,6 +140,7 @@ func (s *Server) disablePrivacy(w http.ResponseWriter, r *http.Request) {
 }
 
 type privacyDevice struct {
+	sqlite.VehicleProfile
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
 	Model        string `json:"model"`
@@ -193,7 +194,12 @@ func (s *Server) privacySync(w http.ResponseWriter, r *http.Request) {
 		if name == "" {
 			name = d.PhoneNumber
 		}
-		response.Devices = append(response.Devices, privacyDevice{ID: d.ID, Name: name, Model: d.Model, ConfigStatus: d.ConfigStatus, ConfigDetail: d.ConfigDetail, TrackerID: d.TrackerID})
+		profile, err := s.store.VehicleProfile(r.Context(), d.ID)
+		if err != nil {
+			s.internalError(w, r, err)
+			return
+		}
+		response.Devices = append(response.Devices, privacyDevice{VehicleProfile: profile, ID: d.ID, Name: name, Model: d.Model, ConfigStatus: d.ConfigStatus, ConfigDetail: d.ConfigDetail, TrackerID: d.TrackerID})
 	}
 	for _, p := range positions {
 		response.Positions = append(response.Positions, privacyPosition{

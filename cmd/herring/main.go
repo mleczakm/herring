@@ -131,6 +131,7 @@ func main() {
 	go func() { errorsChannel <- trackerServer.ListenAndServe(ctx) }()
 	go enforceRetention(ctx, store, logger)
 	go alerts.watchOffline(ctx, httpHandler)
+	go alerts.watchVehicles(ctx)
 
 	select {
 	case <-ctx.Done():
